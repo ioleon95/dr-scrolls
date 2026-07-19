@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeon Rivals — the Verse System (moderate / player handbook)</title>
+<style>
+  :root{
+    --bg:#0e1116; --card:#161b22; --card2:#1b222c; --line:#30363d; --ink:#e6edf3; --soft:#8b949e;
+    --accent:#58a6ff; --good:#3fb950; --wait:#d29922; --todo:#f85149;
+    --hero:#e3b341; --villain:#bc6bd6; --b:#ff8a3d; --c:#2ea6c9;
+    --low:#8b949e; --mid:#58a6ff; --high:#f0883e;
+    --shadow:0 8px 24px #0007;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.6 "Segoe UI",system-ui,-apple-system,sans-serif;}
+  .wrap{max-width:1040px;margin:0 auto;padding:26px 20px 80px;}
+  header{text-align:center;margin-bottom:8px;}
+  h1{font-size:28px;margin:0 0 8px;}
+  .sub{color:var(--soft);font-size:18px;margin:0 auto;}
+  .modebar{display:flex;justify-content:center;gap:10px;margin:20px 0 30px;}
+  .modebar a{text-decoration:none;font-size:14px;padding:8px 16px;border-radius:999px;
+    border:1px solid var(--line);color:var(--soft);background:var(--card);box-shadow:var(--shadow);}
+  .modebar a.on{background:var(--ink);color:#0e1116;border-color:var(--ink);font-weight:700;}
+  .modebar a:hover{border-color:var(--accent);}
+
+  .sec{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:22px 24px;margin:18px 0;box-shadow:var(--shadow);}
+  .sec > h2{margin:0 0 6px;font-size:22px;display:flex;align-items:center;gap:10px;}
+  .sec > .lead{color:#c9d1d9;margin:0 0 16px;}
+  .kicker{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--soft);
+    font-weight:700;margin:0 0 2px;}
+  .subk{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#ffd479;
+    font-weight:700;margin:16px 0 7px;border-left:3px solid #ffd47955;padding-left:8px;}
+  .subk:first-of-type{margin-top:4px;}
+
+  .grid{display:grid;gap:12px;}
+  .g2{grid-template-columns:1fr 1fr;}
+  .g3{grid-template-columns:repeat(3,1fr);}
+  .box{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:14px 16px;}
+  .box h3{margin:0 0 4px;font-size:16px;}
+  .box p{margin:0;color:#c9d1d9;font-size:14.5px;}
+
+  .rules{list-style:none;padding:0;margin:0;}
+  .rules li{display:flex;gap:10px;align-items:flex-start;padding:9px 0;}
+  .rules li + li{border-top:1px solid var(--line);}
+  .rules .n{flex:0 0 auto;font-weight:700;color:#0e1116;background:var(--accent);
+    border-radius:6px;padding:1px 8px;font-size:13px;margin-top:2px;}
+
+  .pill{display:inline-block;font-size:12.5px;border-radius:7px;padding:2px 9px;border:1px solid var(--line);}
+  .pill.up{color:#7ee787;background:#0f2417;border-color:#1c5b32;}
+  .pill.down{color:#ffa198;background:#2a1615;border-color:#6e2a26;}
+  .q{color:#ffd479;background:#2a2410;border:1px solid #6e5a1f;border-radius:7px;
+    padding:1px 8px;font-size:12px;display:inline-block;}
+
+  /* tier ladder */
+  .ladder{display:flex;gap:10px;align-items:stretch;}
+  .tier{flex:1;border-radius:12px;padding:12px 14px;border:1px solid var(--line);background:var(--card2);}
+  .tier b{display:block;font-size:15px;margin-bottom:2px;}
+  .tier.standard{border-left:5px solid #9aa2ad;}
+  .tier.doctrine{border-left:5px solid #37c46b;}
+  .tier.sacred{border-left:5px solid #9a6bd6;}
+  .tier.divine{border-left:5px solid #f0b23a;}
+  .tier small{color:var(--soft);}
+
+  /* glossary */
+  .gloss{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .term{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:11px 13px;}
+  .term b{color:#fff;}
+  .term.key b{color:#ffd479;}
+  .term p{margin:3px 0 0;color:#c9d1d9;font-size:14px;}
+  .term code{background:#0e1116;border:1px solid var(--line);border-radius:5px;padding:0 5px;color:#a5d6ff;font-size:13px;}
+
+  /* flow */
+  .flow{display:flex;gap:8px;align-items:stretch;flex-wrap:wrap;}
+  .fstep{flex:1;min-width:150px;background:var(--card2);border:1px solid var(--line);
+    border-radius:12px;padding:12px 14px;position:relative;}
+  .fstep .num{font-size:12px;color:var(--soft);font-weight:700;}
+  .fstep b{display:block;font-size:15px;margin:2px 0;}
+  .fstep p{margin:0;color:#c9d1d9;font-size:13.5px;}
+  .fstep + .fstep::before{content:"▶";position:absolute;left:-12px;top:50%;transform:translateY(-50%);
+    color:#4b5563;font-size:13px;}
+  .example{margin-top:14px;background:#12233a;border:1px solid #21456e;border-radius:12px;
+    padding:13px 16px;color:#cfe4ff;font-size:14.5px;}
+  .example b{color:#fff;}
+
+  /* gods */
+  .pantheons{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .pan h3{margin:0 0 8px;font-size:17px;display:flex;align-items:center;gap:8px;}
+  .pan.hero h3{color:var(--hero);}
+  .pan.villain h3{color:var(--villain);}
+  .god{padding:8px 0;}
+  .god + .god{border-top:1px solid var(--line);}
+  .god b{font-size:14.5px;}
+  .god i{color:var(--soft);font-style:italic;font-size:13.5px;}
+  .god small{display:block;color:#8b949e;font-size:12.5px;margin-top:1px;}
+
+  table.eco{width:100%;border-collapse:collapse;font-size:14.5px;}
+  table.eco th,table.eco td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top;}
+  table.eco th{background:var(--card2);color:var(--soft);font-size:13px;text-transform:uppercase;letter-spacing:.06em;}
+  .side-h{color:var(--hero);font-weight:700;}
+  .side-v{color:var(--villain);font-weight:700;}
+
+  .note{font-size:13px;color:var(--soft);margin-top:12px;}
+  .buildbar{background:#171e17;border:1px solid #2c4a2c;border-radius:12px;padding:12px 16px;
+    color:#c9d1d9;font-size:13.5px;margin-top:10px;}
+  footer{text-align:center;color:var(--soft);font-size:13px;margin-top:32px;}
+  footer a{color:var(--accent);}
+  @media (max-width:760px){.g2,.g3,.gloss,.pantheons{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📖 Dungeon Rivals — the Verse System</h1>
+    <p class="sub">Moderate view · the player’s handbook. How Scriptures, Verses, Gods and levels actually work.</p>
+  </header>
+
+  <div class="modebar">
+    <a href="simple.html">🙂 Simple</a>
+    <a class="on" href="moderate.html">📖 Moderate</a>
+    <a href="outline.html">🛠️ Technical</a>
+    <a href="scrolls.html">🧿 Scrolls</a>
+  </div>
+
+  <!-- A. BUILDING A SCRIPTURE + POWER SYSTEM -->
+  <div class="sec">
+    <p class="kicker">Before the match</p>
+    <h2>🧩 Building a Scripture</h2>
+    <p class="lead">A <b>Scripture</b> is the deck of <b>Verses</b> you bring into a match.
+      Your <b>Character determines your God</b>, and your God sets your identity — a bit like
+      how a commander sets your colors in Magic. You then build a legal Scripture:</p>
+
+    <ul class="rules">
+      <li><span class="n">1</span><div><b>Power &le; 60.</b> Every Verse has a <b>Power Cost</b>. Your whole Scripture must spend <b>no more than 60 Power</b> (budget cap, not a fixed target).</div></li>
+      <li><span class="n">2</span><div><b>At least 30 Verses.</b> More cheap Verses vs. fewer expensive ones is the core deckbuilding tension.</div></li>
+      <li><span class="n">3</span><div><b>Singleton.</b> No two copies of the same Verse — <i>unless</i> a God or a Verse rule specifically allows it.</div></li>
+      <li><span class="n">4</span><div><b>Divine cap.</b> At most <b>one Divine</b> Verse per Scripture. <span class="q">❓ confirm cap for Sacred</span></div></li>
+    </ul>
+
+    <p class="kicker" style="margin-top:18px">The power system</p>
+    <div class="grid g3">
+      <div class="box"><h3>Power Cost</h3><p>Each Verse is priced. Stronger, higher-tier Verses cost more of your 60-Power budget.</p></div>
+      <div class="box"><h3>The trade-off</h3><p>Spend big on a few bombs, or spread thin across many reliable Verses. You can’t have both.</p></div>
+      <div class="box"><h3>Downside scales</h3><p>A Verse’s <i>drawback</i> grows with its power &amp; tier — power is never free.</p></div>
+    </div>
+
+    <p class="kicker" style="margin-top:20px">Verse filters — who may run a Verse</p>
+    <p class="lead" style="margin-bottom:12px">Every Verse carries a <b>Faction</b>, one or more <b>Moral Traits</b>, and may be
+      <b>God-Locked</b>. Your God only accepts Verses whose traits it favors — that gate is what makes
+      each God’s Scripture feel different.</p>
+    <div class="grid g3">
+      <div class="box"><h3>Faction</h3><p><span class="pill up">Heroic</span> <span class="pill down">Villainous</span> <span class="pill">Neutral</span></p></div>
+      <div class="box"><h3>God-Locked</h3><p>Optional. Exclusive to a single God — only that God’s devotees may run it.</p></div>
+      <div class="box"><h3>Neutral Verses</h3><p>Faction-neutral — legal in <i>any</i> Scripture, under any God.</p></div>
+    </div>
+    <div class="grid g2" style="margin-top:12px">
+      <div class="box"><h3 style="color:var(--villain)">🦹 Villain traits — the 7 Sins</h3>
+        <p>Pride · Greed · Lust · Envy · Gluttony · Wrath · Sloth</p></div>
+      <div class="box"><h3 style="color:var(--hero)">🦸 Hero traits — the 7 Virtues</h3>
+        <p>Humility · Charity · Chastity · Kindness · Temperance · Patience · Diligence</p></div>
+    </div>
+    <p class="note">Classic pairings (sin ↔ virtue): Pride↔Humility · Greed↔Charity · Lust↔Chastity · Envy↔Kindness · Gluttony↔Temperance · Wrath↔Patience · Sloth↔Diligence.</p>
+    <div class="example" style="margin-top:12px">
+      <b>How a God gates a Scripture.</b> Each God favors a set of Moral Traits — and can <i>mix</i> sin &amp; virtue.
+      A devotee’s Scripture may hold Verses of those traits, plus that God’s <b>God-Locked</b> Verses, plus any <b>Neutral</b> Verse.
+      <br>· e.g. <b>The Skittering Maw</b> favors <span class="pill down">Gluttony</span> <span class="pill down">Greed</span> <span class="pill up">Patience</span>
+      → Maw Scriptures accept those traits + Maw-exclusive + Neutral Verses. <span class="q">❓ confirm each God’s trait set</span>
+    </div>
+  </div>
+
+  <!-- B. HIERARCHY OF VERSES -->
+  <div class="sec">
+    <p class="kicker">Verse hierarchy</p>
+    <h2>🃏 What a Verse is (and the tier ladder)</h2>
+    <p class="lead">A Verse is a small, permanent effect with an <b>upside and a scaling downside</b>.
+      Behavior is pure data — Verses only <b>Add / Subtract / Multiply / Declare / Edit</b> your stats
+      through one shared calculator (see §Gods). Its <b>Tier</b> is authored, not earned. There is
+      <b>no rarity</b> — the four tiers are the whole ladder.</p>
+    <p class="lead"><b>Stat effects (+/- stats) are reserved for Standard &amp; Doctrine.</b>
+      <b>Sacred &amp; Divine are text-first</b> — their power lives almost entirely in their
+      <i>rules text</i>, and they rarely (ideally never) carry raw +/- stats.</p>
+
+    <div class="ladder">
+      <div class="tier standard"><b style="color:#c3cbd6">Standard · grey</b><small>Generic, flexible, cheap. Mild trade-off. Carries +/- stats.</small>
+        <div style="margin-top:8px"><span class="pill up">+2 Attack</span> <span class="pill down">−1 Speed</span></div></div>
+      <div class="tier doctrine"><b style="color:#4fd67f">Doctrine · green</b><small>Sharper stat effects, situational, mid cost.</small>
+        <div style="margin-top:8px"><span class="pill up">+3 Attack</span> <span class="pill down">−2 Defense</span></div></div>
+      <div class="tier sacred"><b style="color:#c39bf0">Sacred · purple</b><small>Text-first. A keyword engine with a lighter scaling cost — rarely any stats.</small>
+        <div style="margin-top:8px"><span class="pill">Devour &amp; grow</span> <span class="pill down">cost: scales</span></div></div>
+      <div class="tier divine"><b style="color:#f0c04a">Divine · gold</b><small>Text-first, the biggest swings. Most powerful <i>and</i> most punishing. Max 1 per Scripture.</small>
+        <div style="margin-top:8px"><span class="pill">rewrites a rule</span> <span class="pill down">cost: severe &amp; scaling</span></div></div>
+    </div>
+    <p class="note">Design bar: <b>Sacred/Divine feel exotic and text-driven</b> — you build a Scripture to <i>counter-balance</i> their scaling cost. <b>Standard/Doctrine feel generic and stat-driven</b>. Every Verse should feel fair — a genuine risk/reward choice.</p>
+  </div>
+
+  <!-- C. WORD GLOSSARY -->
+  <div class="sec">
+    <p class="kicker">The keyword engine</p>
+    <h2>📜 Word Glossary</h2>
+    <p class="lead">Verses are written as <b>rules text</b>. The <b>words in quotes are parameters</b> —
+      Gods and Verses rewrite them (e.g. <code>choose "one"</code> becomes <code>choose "three"</code>).
+      This is the language the whole draw runs on.</p>
+
+    <p class="subk">Zones — where Verses live</p>
+    <div class="gloss">
+      <div class="term"><b>Scripture</b><p>Your built <b>deck &amp; draw pool</b> — ≥30 Verses, ≤60 Power, singleton.</p></div>
+      <div class="term"><b>Slot</b><p>A limited space that holds one drawn/loaded Verse. <b>3 draw / 3 load.</b></p></div>
+      <div class="term key"><b>Gospel</b><p>Your <b>active zone</b> — the Verses applied to your character. <b>Max 6.</b> When full you <b>may replace</b> one to add another; the replaced Verse goes to <b>Ether</b>.</p></div>
+      <div class="term key"><b>Ether</b><p>Your <b>discard zone</b>. Discarded, Sacrificed, or replaced Verses go here — some keywords pull them back.</p></div>
+    </div>
+
+    <p class="subk">Core flow</p>
+    <div class="gloss">
+      <div class="term"><b>Level up</b><p>The trigger. Each level-up runs one draw → activation.</p></div>
+      <div class="term"><b>Draw "N"</b><p>Reveal N Verses from your Scripture into your <b>Slots</b>.</p></div>
+      <div class="term"><b>Load</b><p>Placing a Verse into a Slot so it can resolve. Loading <b>consumes a Slot</b>.</p></div>
+      <div class="term"><b>May</b><p>Optional. <code>may choose</code> = you can decline.</p></div>
+      <div class="term"><b>Choose "N"</b><p>Keep N of the drawn Verses to activate.</p></div>
+      <div class="term"><b>Discard "N"</b><p>Send N Verses to <b>Ether</b>. Gone from your pool <i>unless</i> a rule returns them.</p></div>
+      <div class="term"><b>Activate</b><p>Resolve a Verse — apply its effect and place it in your <b>Gospel</b> (permanent for the match).</p></div>
+      <div class="term"><b>Next</b><p>The next Verse in Scripture order. <code>Activate "Next" "one"</code> = fire the top card.</p></div>
+      <div class="term"><b>from Scripture</b><p>Effect draws straight off your Scripture instead of a Slot (works even with all Slots locked).</p></div>
+    </div>
+
+    <p class="subk">Shipped keywords</p>
+    <div class="gloss">
+      <div class="term key"><b>Sanctify "N"</b><p>Return N Verses <b>to the draw pool</b> — they can appear again.</p></div>
+      <div class="term key"><b>Reverent</b><p><b>Hold</b> a Verse for your next level-up instead of resolving now.</p></div>
+      <div class="term key"><b>Ascend</b><p>Target a Slot: <b>discard</b> its Verse, replace with a <b>random stronger</b> one, and <b>lock the Slot</b> (−1 future draw).</p></div>
+    </div>
+
+    <p class="subk">Sacrifice &amp; Ether &middot; the Saint</p>
+    <div class="gloss">
+      <div class="term key"><b>Sacrifice</b><p>Choose a Verse in your <b>Gospel</b> and discard it (→ Ether); then <b>Gain benefit</b> (e.g. <code>Activate "two"</code> this level-up, or <b>Revive</b> a Verse).</p></div>
+      <div class="term key"><b>Revive</b><p>Choose a Verse from your <b>Ether</b> and <b>Activate</b> it — it returns to your Gospel.</p></div>
+      <div class="term key"><b>Martyr</b><p><i>Triggered.</i> When a Verse enters your <b>Ether</b> (discarded/Sacrificed), <b>Gain benefit</b>.</p></div>
+    </div>
+
+    <p class="subk">Gluttony &amp; tempo</p>
+    <div class="gloss">
+      <div class="term key"><b>Devour "N"</b><p>Discard N <b>loaded</b> Verses; for <b>each</b> one, add a <b>Devour Counter</b>. Your <b>Gain benefit</b> scales with the counter. <small>(Skittering Maw)</small></p></div>
+      <div class="term key"><b>Surge</b><p>Play an <b>additional</b> Verse this level-up — <b>cost:</b> take a <b>Negative effect</b> (a debuff). <small>(Endless Tempest)</small></p></div>
+    </div>
+
+    <p class="subk">Control &amp; interaction</p>
+    <div class="gloss">
+      <div class="term key"><b>Smite</b><p><b>Destroy a random</b> Verse from a <b>target opponent's Gospel</b>. <small>(Tempest / Wrath)</small></p></div>
+      <div class="term key"><b>Rebuke</b><p><b>Sanctify</b> a Verse in a <b>target player's Gospel</b> — back to their draw pool. <small>(Eternal Warden)</small></p></div>
+      <div class="term key"><b>Seal</b><p>Make a Verse <b>unremovable</b> from a Gospel. <small>(Eternal Warden)</small></p></div>
+      <div class="term key"><b>Lament</b><p><b>Swap</b> a Verse in your <b>Gospel</b> with a <b>target player's</b>.</p></div>
+      <div class="term key"><b>Absolve</b><p><b>Unlock</b> an <b>Ascend-locked</b> Slot — recover one draw. The counter to Ascend.</p></div>
+    </div>
+
+    <p class="subk">Timing &amp; conditions</p>
+    <div class="gloss">
+      <div class="term"><b>On "[event]"</b><p>Trigger binder — <code>On Level</code>, <code>On Raid</code>, <code>On Structure-Fall</code>, <code>On Kill</code>, <code>On Relic</code>. Ties Verses to the raid loop.</p></div>
+      <div class="term"><b>While "[condition]"</b><p><b>Continuous</b> — active only while the condition holds.</p></div>
+      <div class="term"><b>Threshold "N"</b><p>Effect switches on once a counter/level reaches <b>N</b>.</p></div>
+    </div>
+
+    <p class="subk">Identity &amp; build-rules</p>
+    <div class="gloss">
+      <div class="term key"><b>Zealot</b><p>Bonus <b>while every Verse</b> matches your God's Moral-Trait allow-list — rewards pure devotion.</p></div>
+    </div>
+
+    <p class="subk" style="opacity:.6">Cut — revisit post-MVP (not in launch scope)</p>
+    <div class="gloss" style="opacity:.55">
+      <div class="term"><b>Desecrate</b> <small>(Q-O)</small><p>A target Verse <b>loses its text</b> — strip its power. Can hollow a Gospel Verse into an <b>empty slot</b>. <em>Runtime Verse-mutation — deferred.</em></p></div>
+      <div class="term"><b>Synchronize</b> <small>(Q-O)</small><p><b>Combine two</b> Verses in your <b>Gospel</b> into one. <em>Runtime Verse-mutation — deferred.</em></p></div>
+      <div class="term"><b>Corrupt / Redeem</b> <small>(Q-P)</small><p><b>Flip</b> a target's <b>Moral Trait</b> along a sin↔virtue pair (Villains <b>Corrupt</b>; Heroes <b>Redeem</b>). <em>Runtime trait warfare + legality re-eval — deferred.</em></p></div>
+      <div class="term"><b>Relic</b> <small>(Ordain, Q-K)</small><p>A Verse that <b>overrides singleton</b> — you may run <b>duplicates</b> of it. <em>Breaks absolute singleton — scoped out.</em></p></div>
+    </div>
+    <p class="note"><code>Gain benefit</code>, <code>"N"</code>, <code>"[event]"</code> are <b>parameters</b> Gods and Verses rewrite. Every keyword is authored as <b>data</b> (no bespoke per-Verse code) — see the engineering brief <code>briefs/verse-keyword-engine.md</code>.</p>
+  </div>
+
+  <!-- D. PLAYER STRUCTURE / THE SWITCH -->
+  <div class="sec">
+    <p class="kicker">Player structure · resolution</p>
+    <h2>🔀 How a level-up resolves (Slots &amp; the switch)</h2>
+    <p class="lead">Every level-up flows through the same four beats. <b>Loading needs Slots</b>, and
+      <b>Ascend</b> is how you trade Slots for power.</p>
+
+    <div class="flow">
+      <div class="fstep"><span class="num">STEP 1</span><b>Level up</b><p>You gain a level → a draw begins.</p></div>
+      <div class="fstep"><span class="num">STEP 2</span><b>Load</b><p>Verses fill your Slots (draw / discard / next).</p></div>
+      <div class="fstep"><span class="num">STEP 3</span><b>Interaction</b><p>You choose — <i>if</i> the rule gives you a choice.</p></div>
+      <div class="fstep"><span class="num">STEP 4</span><b>Activation</b><p>Kept Verse(s) resolve into your <b>Gospel</b> (max 6); discards fall to <b>Ether</b>.</p></div>
+    </div>
+
+    <div class="example">
+      <b>Worked example.</b> A rule says: <code>Discard "two"</code>, then <code>Activate "Next" "one"</code> from Scripture.
+      Here the <b>Load</b> step <i>is</i> the discard (2 Slots used), there’s <b>no interaction</b>, and activation comes off your Scripture.
+      <br>· <b>2 Slots</b> → discard 2, activate the next.
+      <br>· <b>Ascend one Slot</b> → only 1 left → discard 1, activate the next.
+      <br>· <b>Ascend both</b> → no discard → just activate from Scripture.
+    </div>
+    <p class="note">When every Slot is locked by Ascend you can no longer hand-load Verses (no selecting) — but effects that <b>Activate Next</b> or fire <b>from Scripture</b> still happen.</p>
+  </div>
+
+  <!-- E. GODS: RULES + HIERARCHY + PANTHEONS -->
+  <div class="sec">
+    <p class="kicker">Gods · rules &amp; identity</p>
+    <h2>⛩️ God Rules and the Pantheons</h2>
+    <p class="lead">Your Character locks in your <b>God</b>. Gods do two things mechanically:
+      they <b>rewrite the glossary words</b> (their own rules text), and they add <b>God Rules</b>
+      — modifiers that feed the <i>same</i> calculator your Verses use. God Rules can also change
+      what your Scripture may contain (singleton overrides, allowed audiences). Gods sit
+      <b>above</b> Verses in the hierarchy: <b>God Rule &gt; Verse rule &gt; standard rule.</b>
+      <span class="q">❓ confirm precedence order</span></p>
+
+    <div class="pantheons">
+      <div class="pan hero box">
+        <h3>🦸 Hero Pantheon — “they preach virtue, they harvest heroes”</h3>
+        <div class="god"><b>The Radiant Judge</b> — <i>“Only obedience has value.”</i><small>Individuality is sinful.</small></div>
+        <div class="god"><b>The Golden Shepherd</b> — <i>“All belongs to the faithful.”</i><small>Generosity becomes confiscation &amp; tithes.</small></div>
+        <div class="god"><b>The Eternal Warden</b> — <i>“Excess breeds corruption.”</i><small>Security through control; every pleasure monitored.</small></div>
+        <div class="god"><b>The Sacred Banner</b> — <i>“Work is worship.”</i><small>Unity through conformity; endless labor.</small></div>
+        <div class="god"><b>The Ivory Witness</b> — <i>“Mercy is correction.”</i><small>Truth by authority; cruelty “for your own good.”</small></div>
+        <div class="god"><b>The Saint of Sacrifice</b> — <i>“Purity above desire.”</i><small>Suffering is holy; suppresses love &amp; freedom.</small></div>
+        <div class="god"><b>The Silent Martyr</b> — <i>“Endure. Question nothing.”</i><small>Suffering celebrated instead of solved.</small></div>
+      </div>
+      <div class="pan villain box">
+        <h3>🦹 Villain Pantheon — “they preach freedom, they harvest villains”</h3>
+        <div class="god"><b>The Skittering Maw</b> — <i>“The universe exists to be consumed.”</i><small>Hunger creates greatness.</small></div>
+        <div class="god"><b>The Endless Tempest</b> — <i>“Anger is honesty.”</i><small>Freedom through destruction.</small></div>
+        <div class="god"><b>The Queen of Excess</b> — <i>“Take what you can earn.”</i><small>Ownership is proof of strength.</small></div>
+        <div class="god"><b>The Laughing Ruin</b> — <i>“Rest is the reward of freedom.”</i><small>Refuse labor imposed by others.</small></div>
+        <div class="god"><b>The Horned Tyrant</b> — <i>“Demand the world acknowledge your worth.”</i><small>Greatness never apologizes.</small></div>
+        <div class="god"><b>The Whisper Eye</b> — <i>“If another has it, surpass them.”</i><small>Secrets are power; envy fuels ambition.</small></div>
+        <div class="god"><b>The Crimson Fool</b> — <i>“Life is meant to be experienced.”</i><small>Passion in all forms is sacred.</small></div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:22px">⚔️ Launch God Rules — the 4 playable Gods</h3>
+    <p class="lead">The vertical slice ships <b>4 of the 14 Gods</b>. Each adds one <b>God Rule</b> —
+      a modifier that feeds the <i>same</i> calculator as your Verses (God Rule &gt; Verse rule &gt;
+      standard). Shared cadence knob: <b>“every 3 Levels.”</b></p>
+    <div class="grid g2">
+      <div class="box"><h3 style="color:var(--villain)">🦹 The Skittering Maw — <i>Insatiable</i></h3>
+        <p><b>+1 to ALL stats</b> per <b>Devour Counter</b> you hold; you <b>may Devour every 3 Levels</b>.
+        <small>(Counters are permanent, so the reward is the scaling all-stat swell.)</small></p></div>
+      <div class="box"><h3 style="color:var(--villain)">🦹 The Endless Tempest — <i>Overwhelm</i></h3>
+        <p>Every <b>3 Levels</b> you may <b>Surge</b> (Activate an extra Verse); you <b>start with 2 Load
+        zones</b> instead of 3. <small>(Tempo now, one fewer draw all match.)</small></p></div>
+      <div class="box"><h3 style="color:var(--hero)">🦸 The Eternal Warden — <i>Equilibrium</i></h3>
+        <p>All player stats are <b>capped at 3&times; Level</b>; every <b>3 Levels</b>, <b>Seal</b> a
+        target player’s Gospel Verse. <small>(Anti-scaling control — the Maw’s foil.)</small></p></div>
+      <div class="box"><h3 style="color:var(--hero)">🦸 The Saint of Sacrifice — <i>Martyrdom</i></h3>
+        <p>When a Verse enters <b>Ether</b>, gain <b>+1 to a stat</b>; every <b>3 Levels</b> <b>Revive</b>
+        a Verse from Ether and <b>Sanctify</b> it. <small>(Loss becomes fuel.)</small></p></div>
+    </div>
+    <p class="note"><b>Self-balancing rule (all Verses):</b> a Verse’s drawback <b>scales with its
+      payoff</b> and is tied to the same mechanic. <b>Divine</b> and <b>Sacred</b> Verses are
+      <b>text-first</b> — they carry no raw +/- stats; their entire cost lives in the rules text as a
+      <i>scaling</i> penalty. <b>Divine</b> Verses are the most powerful <i>and</i> the most punishing,
+      so you build a Scripture to counter your own bombs. The intended feeling: <i>“this makes me OP,
+      but MAN I need to counteract the crazy negative.”</i> <b>Sacred</b> carries a lighter scaling
+      cost; <b>Doctrine/Standard</b> keep simple fixed +/- stat trade-offs.</p>
+
+    <p class="note">Lore hook (the joke): both pantheons feed on the souls of champions. Heroes purge dungeons, Villains slay champions — both sides celebrate, both fatten the same gods. Each God accepts only Verses of its favored <b>Moral Traits</b> (plus <b>Neutral</b> and its own <b>God-Locked</b> Verses) — see <i>Building a Scripture → Verse filters</i>.</p>
+  </div>
+
+  <!-- F. EXP, GOLD, LEVEL -->
+  <div class="sec">
+    <p class="kicker">Progression</p>
+    <h2>⬆️ EXP, Gold &amp; what “Level” means</h2>
+    <p class="lead">A <b>Level</b> is your mid-match growth tick: <b>every level-up triggers a Verse draw</b>.
+      More levels = more Verses = a stronger character. Both sides climb the same ladder — they
+      just pay for the rungs differently.</p>
+
+    <table class="eco">
+      <tr><th>Side</th><th>What you earn</th><th>How you earn it</th><th>How you level</th></tr>
+      <tr>
+        <td><span class="side-h">🦸 Heroes</span></td>
+        <td><b>Gold</b></td>
+        <td>Keeping the peace &amp; raiding the dungeon</td>
+        <td><b>Buy</b> your levels with Gold (the Market / Indulgence)</td>
+      </tr>
+      <tr>
+        <td><span class="side-v">🦹 Villains</span></td>
+        <td><b>XP</b></td>
+        <td>Building dungeons &amp; raiding</td>
+        <td><b>Gain</b> levels automatically as XP fills</td>
+      </tr>
+    </table>
+    <p class="note">Same core loop (a level → a draw), two flavors: Heroes <b>spend</b> to grow, Villains <b>earn</b> to grow. <span class="q">❓ confirm: is there a level cap / do Gold-levels and XP-levels both feed the same draw?</span></p>
+  </div>
+
+  <div class="buildbar">
+    🔧 <b>Build reality check:</b> the shared <b>calculator</b> and the Hero <b>buy-a-Verse</b> path are built &amp; tested.
+    The <b>keyword engine</b> (Draw/Choose/Discard/Sanctify/Reverent/Ascend), the <b>Slot</b> system, <b>God Rules</b>,
+    and authored <b>Verses &amp; Gods</b> are designed here but <b>not yet in code</b> — that’s the bulk of the work ahead.
+  </div>
+
+  <footer>Moderate view · go lighter with the <a href="simple.html">simple view</a> or deeper with the <a href="outline.html">technical view</a>. <span class="q">❓</span> tags mark things for you to confirm or fill in.</footer>
+</div>
+</body>
+</html>

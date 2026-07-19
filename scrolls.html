@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0c10" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Scrolls" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="manifest" href="manifest.webmanifest" />
+<title>Dungeon Rivals — Neutral Scrolls</title>
+<style>
+  :root{
+    --bg:#0a0c10; --bg2:#0e1116; --stone:#171a20; --stone2:#1e232b; --stoneTop:#2a3038;
+    --line:#2c333d; --line2:#3a434f; --ink:#e9e2d2; --soft:#9aa2ad; --faint:#6b7480;
+    --ember:#ff9a3c; --ember2:#ffc46b; --gold:#d8b56a; --glowA:#ff8a2a;
+    --cold:#7fa8c9; --good:#8fe0a0; --bad:#ff8f7a;
+    --ok:#3fb950; --warn:#d29922; --no:#f85149;
+    --shadow:0 10px 30px #000a, 0 2px 6px #0008;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:15px/1.55 "Segoe UI",system-ui,-apple-system,sans-serif;
+    background-image:radial-gradient(1200px 700px at 50% -10%, #14202e 0%, #0a0c10 60%);}
+
+  /* drifting embers/snow */
+  .sky{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0;}
+  .mote{position:absolute;top:-10px;border-radius:50%;opacity:0;
+    animation:fall linear infinite;}
+  @keyframes fall{
+    0%{transform:translateY(-20px) translateX(0);opacity:0;}
+    10%{opacity:.9;}
+    90%{opacity:.5;}
+    100%{transform:translateY(105vh) translateX(30px);opacity:0;}
+  }
+
+  .wrap{position:relative;z-index:1;max-width:1240px;margin:0 auto;padding:26px 20px 90px;}
+  header.top{text-align:center;margin-bottom:6px;}
+  header.top h1{font-size:30px;margin:0 0 6px;letter-spacing:.02em;
+    text-shadow:0 0 22px #ff8a2a55, 0 2px 2px #000;}
+  header.top h1 .rune{color:var(--ember);text-shadow:0 0 16px var(--glowA);}
+  header.top .sub{color:var(--soft);font-size:16px;margin:0;}
+
+  .modebar{display:flex;justify-content:center;gap:10px;margin:18px 0 22px;flex-wrap:wrap;}
+  .modebar a{text-decoration:none;font-size:13.5px;padding:7px 14px;border-radius:999px;
+    border:1px solid var(--line);color:var(--soft);background:var(--stone);box-shadow:var(--shadow);}
+  .modebar a.on{background:linear-gradient(180deg,#3a2a12,#241a0c);color:var(--ember2);
+    border-color:#6b4a1e;font-weight:700;text-shadow:0 0 10px var(--glowA);}
+  .modebar a:hover{border-color:var(--ember);color:var(--ember2);}
+
+  /* budget altar */
+  .altar{position:sticky;top:10px;z-index:5;margin:0 0 20px;
+    background:linear-gradient(180deg,#141821,#0e1218);
+    border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow);
+    padding:14px 18px;display:flex;gap:18px;align-items:center;flex-wrap:wrap;
+    backdrop-filter:blur(3px);}
+  .altar .stat{display:flex;flex-direction:column;gap:1px;min-width:78px;}
+  .altar .stat .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);}
+  .altar .stat .v{font-size:22px;font-weight:800;color:var(--ink);}
+  .altar .stat .v small{font-size:13px;color:var(--soft);font-weight:600;}
+  .powerbar{flex:1;min-width:180px;}
+  .powerbar .track{height:12px;border-radius:8px;background:#0a0d12;border:1px solid var(--line);
+    overflow:hidden;position:relative;}
+  .powerbar .fill{height:100%;width:0;border-radius:7px;
+    background:linear-gradient(90deg,#c9781f,#ff9a3c,#ffc46b);
+    box-shadow:0 0 14px #ff8a2a88;transition:width .25s ease, background .25s ease;}
+  .powerbar .lab{display:flex;justify-content:space-between;font-size:11.5px;color:var(--faint);margin-top:4px;}
+  .verdict{font-weight:800;font-size:13px;padding:6px 14px;border-radius:999px;border:1px solid;
+    letter-spacing:.04em;white-space:nowrap;}
+  .verdict.ok{color:#9ff0ad;background:#0f2417;border-color:#1c5b32;box-shadow:0 0 14px #2ea04333;}
+  .verdict.no{color:#ffb0a6;background:#2a1413;border-color:#6e2a26;box-shadow:0 0 14px #f8514933;}
+  .altar .why{font-size:12px;color:var(--soft);flex-basis:100%;margin-top:-4px;}
+  .altar .why b{color:var(--ember2);}
+
+  /* filters */
+  .filters{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 18px;}
+  .search{flex:1;min-width:200px;position:relative;}
+  .search input{width:100%;background:var(--stone);border:1px solid var(--line);color:var(--ink);
+    border-radius:10px;padding:9px 12px 9px 34px;font-size:14px;outline:none;}
+  .search input:focus{border-color:var(--ember);box-shadow:0 0 0 3px #ff8a2a22;}
+  .search::before{content:"\1F50D";position:absolute;left:10px;top:8px;opacity:.6;font-size:14px;}
+  .chip{cursor:pointer;user-select:none;font-size:12.5px;padding:6px 12px;border-radius:999px;
+    border:1px solid var(--line);background:var(--stone);color:var(--soft);}
+  .chip:hover{border-color:var(--ember);color:var(--ember2);}
+  .chip.on{background:linear-gradient(180deg,#3a2a12,#241a0c);color:var(--ember2);
+    border-color:#6b4a1e;font-weight:700;}
+  .chip.stat.on{background:#12233a;border-color:#2c5f8f;color:#bfe0ff;}
+  .filters select{background:var(--stone);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:7px 9px;font-size:13px;outline:none;cursor:pointer;}
+  .filters select:focus{border-color:var(--ember);box-shadow:0 0 0 3px #ff8a2a22;}
+  .fsel{display:inline-flex;flex-direction:column;gap:3px;}
+  .fsel > span{font-size:10px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);padding-left:2px;}
+  .ttag{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#c9a9e0;
+    border:1px solid #4a3760;border-radius:6px;padding:2px 7px;}
+  .btnrow{display:flex;gap:8px;}
+  .tbtn{cursor:pointer;font-size:12.5px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);
+    background:var(--stone);color:var(--soft);}
+  .tbtn:hover{border-color:var(--ember);color:var(--ember2);}
+  .divider{width:1px;height:24px;background:var(--line);margin:0 2px;}
+
+  .count{font-size:12.5px;color:var(--faint);margin:0 0 12px;}
+
+  /* scroll grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(258px,1fr));gap:18px;}
+
+  .scroll{position:relative;background:
+      linear-gradient(180deg,var(--stoneTop) 0, var(--stone2) 14%, var(--stone) 100%);
+    border:1px solid var(--line);border-radius:14px 14px 12px 12px;
+    box-shadow:var(--shadow), inset 0 1px 0 #ffffff0a;
+    padding:0 0 14px;overflow:hidden;cursor:pointer;transition:transform .12s ease, box-shadow .2s ease, border-color .2s ease, filter .2s ease;}
+  .scroll::after{content:"";position:absolute;inset:0;pointer-events:none;border-radius:inherit;
+    background:radial-gradient(120% 60% at 50% -10%, #ffffff08, transparent 60%);}
+  .scroll:hover{transform:translateY(-3px);border-color:var(--line2);
+    box-shadow:0 16px 36px #000b, 0 0 22px #ff8a2a1f;}
+  .scroll.in{filter:grayscale(1) brightness(.6);border-color:#484d54 !important;
+    box-shadow:0 8px 20px #000a, inset 0 0 0 1px #ffffff08 !important;}
+  .scroll.in:hover{transform:translateY(-2px);filter:grayscale(1) brightness(.68);}
+  /* "Inscribed" corner badge (top-left; edit button lives top-right) */
+  .inmark{position:absolute;left:8px;top:8px;z-index:4;display:none;
+    font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
+    color:#e6ebf1;background:#1b1e24;border:1px solid #5a616c;border-radius:6px;padding:3px 8px;}
+  .scroll.in .inmark{display:inline-block;}
+  /* Doctrine = green */
+  .scroll.doctrine .rband{background:linear-gradient(90deg,#10241a,#173a28);}
+  .scroll.doctrine.in{border-color:#2f7d4a;box-shadow:0 12px 30px #000b, 0 0 22px #37c46b44;}
+
+  /* Standard = grey (base) */
+  .rband{display:flex;align-items:center;gap:8px;padding:8px 12px;
+    background:linear-gradient(90deg,#1a1d22,#2a2f37);border-bottom:1px solid #00000055;}
+  .rband .glyph{font-size:17px;color:#c3cbd6;text-shadow:0 0 12px #9aa2ad;flex:0 0 auto;}
+  .scroll.doctrine .rband .glyph{color:#9fe6b8;text-shadow:0 0 12px #37c46b;}
+  .rband .tier{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#c3cbd6;font-weight:700;}
+  .scroll.doctrine .rband .tier{color:#c7f0d5;}
+  .rband .pwr{margin-left:auto;display:flex;align-items:center;gap:5px;font-weight:800;font-size:13px;color:#dfe5ec;}
+  .rband .pwr .gem{width:14px;height:14px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%, #e8edf2, #9aa2ad 55%, #3a3f46);
+    box-shadow:0 0 10px #9aa2ad;display:inline-block;}
+  .scroll.doctrine .rband .pwr{color:#d9f5e2;}
+  .scroll.doctrine .rband .pwr .gem{background:radial-gradient(circle at 35% 30%, #d8ffe6, #37c46b 55%, #10402a);box-shadow:0 0 10px #37c46b;}
+  /* Sacred = purple */
+  .scroll.sacred .rband{background:linear-gradient(90deg,#221338,#331d50);}
+  .scroll.sacred.in{border-color:#6a4a86;box-shadow:0 12px 30px #000b, 0 0 22px #9a6bd644;}
+  .scroll.sacred .rband .glyph{color:#d3aef0;text-shadow:0 0 12px #9a6bd6;}
+  .scroll.sacred .rband .tier{color:#e2cdf5;}
+  .scroll.sacred .rband .pwr{color:#efd9ff;}
+  .scroll.sacred .rband .pwr .gem{background:radial-gradient(circle at 35% 30%, #f0d8ff, #a06bd6 55%, #3d2060);box-shadow:0 0 10px #9a6bd6;}
+  /* Divine = golden */
+  .scroll.divine{border-color:#6b4a1e;}
+  .scroll.divine .rband{background:linear-gradient(90deg,#3a2a0c,#5a4212);}
+  .scroll.divine.in{border-color:#b0862a;box-shadow:0 12px 30px #000b, 0 0 24px #ffc46b55;}
+  .scroll.divine .rband .glyph{color:#ffe6a8;text-shadow:0 0 14px #ffc46b;}
+  .scroll.divine .rband .tier{color:#ffe9be;}
+  .scroll.divine .rband .pwr{color:#fff0d0;}
+  .scroll.divine .rband .pwr .gem{background:radial-gradient(circle at 35% 30%, #fff0c8, #f0b23a 55%, #5a3f08);box-shadow:0 0 12px #ffc46b;}
+  /* rules text + keyword/god tags */
+  .rtext{font-size:12.5px;line-height:1.5;color:#e8dcc4;background:#00000030;border:1px solid var(--line);
+    border-left:3px solid #ffd47966;border-radius:8px;padding:8px 10px;margin:0 0 9px;}
+  .rtext b{color:#ffd479;}
+  .kws{display:flex;flex-wrap:wrap;gap:5px;margin:0 0 10px;}
+  .kw{font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:#ffd479;
+    border:1px solid #6b5320;background:#2a220f;border-radius:5px;padding:2px 6px;font-weight:700;}
+  .godtag{font-size:10.5px;letter-spacing:.05em;color:#c9a9e0;border:1px solid #4a3760;
+    border-radius:6px;padding:2px 7px;}
+
+  .body{padding:12px 14px 0;}
+  .vname{font-size:16.5px;font-weight:700;margin:0 0 8px;color:#f3ecdc;letter-spacing:.01em;}
+  .fx{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px;}
+  .eff{font-size:12.5px;font-weight:700;border-radius:7px;padding:3px 8px;border:1px solid;display:inline-flex;gap:4px;align-items:center;}
+  .eff.good{color:#bff3c8;background:#0f2417;border-color:#265f38;}
+  .eff.bad{color:#ffc2b6;background:#2a1512;border-color:#6a2b25;}
+  .eff .s{opacity:.72;font-weight:600;}
+  .flavor{font-style:italic;color:var(--soft);font-size:13px;line-height:1.45;
+    border-top:1px dashed var(--line);padding-top:9px;margin:2px 0 12px;}
+  .foot{display:flex;align-items:center;gap:8px;padding:0 14px;}
+  .fac{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--faint);
+    border:1px solid var(--line);border-radius:6px;padding:2px 7px;}
+  .inscribe{margin-left:auto;cursor:pointer;font-size:12.5px;font-weight:700;
+    padding:7px 14px;border-radius:9px;border:1px solid #6b4a1e;
+    background:linear-gradient(180deg,#3a2a12,#241a0c);color:var(--ember2);}
+  .inscribe:hover{box-shadow:0 0 14px #ff8a2a44;}
+  .scroll.in .inscribe{background:#0f2417;border-color:#265f38;color:#9ff0ad;}
+  .empty{grid-column:1/-1;text-align:center;color:var(--faint);padding:40px;font-style:italic;}
+
+  /* god selector panel */
+  .gods-h{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px 12px;margin:6px 0 12px;}
+  .gods-h h2{font-size:15.5px;margin:0;color:#f3ecdc;letter-spacing:.02em;}
+  .gods-h .hint{font-size:12px;color:var(--faint);max-width:640px;}
+  /* ---- God carousel (coverflow) ---- */
+  .godcarousel{position:relative;margin:2px 0 6px;}
+  .gods{position:relative;height:300px;min-height:230px;margin:0;overflow:hidden;
+    touch-action:pan-y;user-select:none;-webkit-user-select:none;}
+  .godcard{position:absolute;top:0;left:50%;width:min(340px,82vw);cursor:pointer;
+    border:1px solid #4b3f2e;border-radius:14px;
+    background:linear-gradient(180deg,#282017,#1b1610);padding:14px;overflow:hidden;
+    transform-origin:center top;will-change:transform,opacity;
+    box-shadow:0 14px 34px #0009;
+    transition:transform .40s cubic-bezier(.22,.61,.36,1), opacity .40s ease, box-shadow .2s ease, border-color .2s ease;}
+  .gods.dragging .godcard{transition:none;}
+  .godcard:hover{border-color:var(--line2);}
+  .godcard.focus{border-color:var(--acc);box-shadow:0 18px 46px #000c, 0 0 26px -4px var(--acc);}
+  .carArrow{position:absolute;top:50%;transform:translateY(-50%);z-index:200;cursor:pointer;
+    width:44px;height:44px;border-radius:50%;border:1px solid var(--line2);background:#12100ccc;
+    color:var(--ember2);font-size:22px;line-height:42px;text-align:center;padding:0;
+    -webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px);
+    transition:border-color .15s,color .15s,background .15s,transform .1s;}
+  .carArrow:hover{border-color:var(--ember);color:#fff;background:#2a1a0c;}
+  .carArrow:active{transform:translateY(-50%) scale(.92);}
+  .carArrow.prev{left:2px;} .carArrow.next{right:2px;}
+  .cardots{display:flex;justify-content:center;align-items:center;gap:8px;margin:2px 0 22px;flex-wrap:wrap;}
+  .cardots .dot{width:9px;height:9px;border-radius:50%;background:var(--line2);cursor:pointer;
+    transition:transform .15s,background .15s;}
+  .cardots .dot:hover{background:var(--soft);}
+  .cardots .dot.on{background:var(--ember);transform:scale(1.5);}
+  .cardots .dot.devoted{background:#37c46b;}
+  .cardots .dot.on.devoted{background:#37c46b;box-shadow:0 0 0 2px #37c46b55;}
+  .godcard::before{content:"";position:absolute;inset:0 0 auto 0;height:3px;background:var(--acc);opacity:.85;}
+  .godcard.active{border-color:var(--acc);box-shadow:0 12px 30px #000b, 0 0 22px var(--acc);}
+  .ghead{display:flex;align-items:center;gap:10px;margin-bottom:9px;}
+  .gname{font-size:15.5px;font-weight:800;color:#f3ecdc;line-height:1.1;}
+  .gfac{font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--faint);margin-top:2px;}
+  .gtag{font-style:italic;color:var(--soft);font-size:12px;margin:0 0 9px;line-height:1.45;}
+  .grule{background:#00000040;border:1px solid var(--line);border-left:3px solid var(--acc);
+    border-radius:9px;padding:8px 10px;margin:0 0 10px;}
+  .grule .rn{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--acc);font-weight:800;display:block;margin-bottom:4px;}
+  .grule .rt{font-size:12.5px;line-height:1.5;color:#e8dcc4;}
+  .grule .rt b{color:#fff2d8;}
+  .gtraits{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:11px;}
+  .gtr{font-size:10px;letter-spacing:.04em;color:#d8c8a4;border:1px solid var(--line);border-radius:5px;padding:2px 6px;}
+  .gpick{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+  .gcount{font-size:11px;color:var(--faint);}
+  .gbtn{font-size:12px;font-weight:700;color:var(--acc);border:1px solid var(--acc);
+    border-radius:8px;padding:5px 12px;background:transparent;cursor:pointer;transition:background .15s ease,color .15s ease;}
+  .godcard.active .gbtn{background:var(--acc);color:#12100c;}
+
+  footer{text-align:center;color:var(--faint);font-size:12.5px;margin-top:34px;}
+  footer a{color:var(--ember2);}
+  @media (max-width:620px){.altar .stat{min-width:64px;}}
+
+  /* ===== authoring: toolbar, edit btn, modal ===== */
+  .forgebar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:0 0 14px;}
+  .forgebar .fbtn{cursor:pointer;user-select:none;font-size:13px;padding:8px 14px;border-radius:10px;
+    border:1px solid var(--line2);color:var(--ink);background:var(--stone2);box-shadow:var(--shadow);}
+  .forgebar .fbtn:hover{border-color:var(--ember);color:var(--ember2);}
+  .forgebar .fbtn.primary{background:linear-gradient(180deg,#3a2a12,#241a0c);color:var(--ember2);border-color:#6b4a1e;font-weight:700;}
+  .forgebar .fspace{flex:1;}
+  .forgebar .note{font-size:12px;color:var(--faint);}
+  .forgebar .note b{color:var(--soft);}
+
+  .newverse{position:fixed;right:22px;bottom:22px;z-index:40;cursor:pointer;
+    font-size:15px;font-weight:800;padding:14px 20px;border-radius:999px;border:1px solid #6b4a1e;
+    color:#12100c;background:linear-gradient(180deg,#ffc46b,#ff9a3c);
+    box-shadow:0 12px 30px #000a, 0 0 22px #ff8a2a88;}
+  .newverse:hover{filter:brightness(1.08);transform:translateY(-2px);}
+
+  .scroll .editbtn{position:absolute;top:8px;right:8px;z-index:3;cursor:pointer;
+    width:26px;height:26px;line-height:24px;text-align:center;border-radius:8px;
+    border:1px solid var(--line2);background:#0d1016cc;color:var(--soft);font-size:13px;opacity:.55;transition:opacity .15s;}
+  .scroll{position:relative;}
+  .scroll:hover .editbtn{opacity:1;}
+  .scroll .editbtn:hover{color:var(--ember2);border-color:var(--ember);}
+  .godcard .gedit{position:absolute;top:10px;right:10px;z-index:3;cursor:pointer;
+    width:24px;height:24px;line-height:22px;text-align:center;border-radius:7px;
+    border:1px solid var(--line2);background:#0d1016cc;color:var(--soft);font-size:12px;opacity:.55;transition:opacity .15s;}
+  .godcard:hover .gedit{opacity:1;}
+  .godcard .gedit:hover{color:var(--acc);border-color:var(--acc);}
+
+  .modal{position:fixed;inset:0;z-index:60;display:none;align-items:flex-start;justify-content:center;
+    background:#05070aee;overflow:auto;padding:34px 16px;}
+  .modal.open{display:flex;}
+  .sheet{width:100%;max-width:720px;background:linear-gradient(180deg,#141821,#0e1218);
+    border:1px solid var(--line2);border-radius:16px;box-shadow:var(--shadow);padding:20px 22px 18px;}
+  .sheet h2{margin:0 0 4px;font-size:20px;}
+  .sheet .sub{color:var(--soft);font-size:13px;margin:0 0 16px;}
+  .fld{margin:0 0 13px;}
+  .fld>label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 5px;}
+  .fld input[type=text],.fld input[type=number],.fld textarea,.fld select{
+    width:100%;background:var(--stone);border:1px solid var(--line);color:var(--ink);
+    border-radius:9px;padding:9px 11px;font:inherit;}
+  .fld textarea{resize:vertical;min-height:52px;}
+  .fld input:focus,.fld textarea:focus,.fld select:focus{outline:none;border-color:var(--ember);box-shadow:0 0 0 3px #ff8a2a22;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;}
+  .chip{cursor:pointer;user-select:none;font-size:12px;padding:5px 10px;border-radius:999px;
+    border:1px solid var(--line);color:var(--soft);background:var(--stone);}
+  .chip.on{background:linear-gradient(180deg,#3a2a12,#241a0c);color:var(--ember2);border-color:#6b4a1e;font-weight:700;}
+  .chip.sin.on{background:linear-gradient(180deg,#3a1414,#240c0c);color:#ff9a86;border-color:#7a2a1e;}
+  .chip.vir.on{background:linear-gradient(180deg,#0e2436,#0a1926);color:#8fc6ee;border-color:#2a5a7a;}
+  .effrows{display:flex;flex-direction:column;gap:8px;}
+  .effrow{display:grid;grid-template-columns:1.4fr .8fr auto;gap:8px;align-items:center;}
+  .effrow .del{cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--stone);
+    color:var(--bad);width:34px;height:34px;font-size:15px;}
+  .effrow .del:hover{border-color:var(--no);}
+  .addeff{cursor:pointer;font-size:12px;color:var(--ember2);border:1px dashed var(--line2);border-radius:8px;
+    padding:7px 10px;background:transparent;margin-top:8px;}
+  .addeff:hover{border-color:var(--ember);}
+  .vmsg{margin:14px 0 4px;border-radius:10px;padding:10px 12px;font-size:12.5px;line-height:1.5;}
+  .vmsg.ok{background:#0f2417;border:1px solid #1f6b38;color:var(--good);}
+  .vmsg.bad{background:#2a1113;border:1px solid #7a2530;color:var(--bad);}
+  .vmsg ul{margin:6px 0 0;padding-left:18px;}
+  .sheet .acts{display:flex;gap:10px;align-items:center;margin-top:16px;}
+  .sheet .acts .fspace{flex:1;}
+  .sheet .acts button{cursor:pointer;font:inherit;font-size:13px;padding:9px 16px;border-radius:10px;border:1px solid var(--line2);}
+  .sheet .acts .save{background:linear-gradient(180deg,#ffc46b,#ff9a3c);color:#12100c;border-color:#6b4a1e;font-weight:800;}
+  .sheet .acts .save:disabled{filter:grayscale(.7) brightness(.7);cursor:not-allowed;}
+  .sheet .acts .cancel{background:var(--stone2);color:var(--soft);}
+  .sheet .acts .del{background:#2a1113;color:var(--bad);border-color:#7a2530;}
+  .sheet .acts .del:hover{border-color:var(--no);}
+  .locked-note{font-size:11px;color:var(--faint);margin-top:4px;}
+</style>
+</head>
+<body>
+<div class="sky" id="sky"></div>
+<div class="wrap">
+  <header class="top">
+    <h1><span class="rune">&#5792;</span> Scripture Scrolls <span class="rune">&#5809;</span></h1>
+    <p class="sub">100 Verses &mdash; the shared <em>Neutral</em> rite plus each God&rsquo;s signature Scrolls. Choose a God, then inscribe your Scripture.</p>
+  </header>
+
+  <div class="modebar">
+    <a href="simple.html">&#128578; Simple</a>
+    <a href="moderate.html">&#128214; Moderate</a>
+    <a href="outline.html">&#128295; Technical</a>
+    <a class="on" href="scrolls.html">&#129535; Scrolls</a>
+  </div>
+
+  <!-- god selector -->
+  <div class="gods-h">
+    <h2>&#9911; Choose your God</h2>
+    <span class="hint">A Scripture runs Neutral Verses + <b>one</b> God&rsquo;s Verses. Pick a God to filter the Scrolls to the Verses they <b>can inscribe</b> (Neutral + their Moral-Trait Verses) and read their <b>God Rule</b>. Click again to clear.</span>
+  </div>
+  <div class="godcarousel">
+    <button class="carArrow prev" id="gPrev" type="button" aria-label="Previous God">&#8249;</button>
+    <div class="gods" id="gods"></div>
+    <button class="carArrow next" id="gNext" type="button" aria-label="Next God">&#8250;</button>
+  </div>
+  <div class="cardots" id="cardots"></div>
+
+  <!-- budget altar -->
+  <div class="altar">
+    <div class="stat"><span class="k">Verses</span><span class="v" id="vCount">0<small>/30 min</small></span></div>
+    <div class="divider"></div>
+    <div class="powerbar">
+      <div class="track"><div class="fill" id="pFill"></div></div>
+      <div class="lab"><span>Power</span><span id="pText">0 / 60</span></div>
+    </div>
+    <div class="verdict no" id="verdict">&mdash;</div>
+    <div class="why" id="why"></div>
+  </div>
+
+  <!-- authoring toolbar -->
+  <div class="forgebar">
+    <div class="fbtn primary" id="newVerse">✦ New Verse</div>
+    <div class="fbtn primary" id="newGod">☉ New God</div>
+    <div class="fbtn" id="expJs">⬇ Export verses.js</div>
+    <div class="fbtn" id="expJson">⬇ Export verses.json</div>
+    <div class="fbtn" id="expGods">⬇ Export gods.json</div>
+    <div class="fbtn" id="resetOv" title="Discard local edits and reload the on-disk set">↺ Reset to file</div>
+    <div class="fbtn primary" id="ghPublish" title="Commit verses.json to your GitHub repo (syncs PC + phone)">⬆ Publish</div>
+    <div class="fbtn" id="ghSync" title="Connect a private GitHub repo for phone/PC sync">☁ Sync</div>
+    <div class="fspace"></div>
+    <span class="note" id="ovNote"></span>
+  </div>
+
+  <!-- filters -->
+  <div class="filters">
+    <div class="search"><input id="q" type="text" placeholder="Search a Verse by name or flavor&hellip;" /></div>
+    <label class="fsel"><span>Tier</span>
+      <select id="fTier"><option value="all">All tiers</option><option value="Standard">Standard</option><option value="Doctrine">Doctrine</option><option value="Sacred">Sacred</option><option value="Divine">Divine</option></select>
+    </label>
+    <label class="fsel"><span>God</span>
+      <select id="fGod"><option value="all">All Gods</option></select>
+    </label>
+    <label class="fsel"><span>Stat</span>
+      <select id="fStat"><option value="any">Any stat</option><option value="ATK">ATK</option><option value="HP">HP</option><option value="SPD">SPD</option><option value="DEF">DEF</option><option value="ATKSPD">ATK SPD</option></select>
+    </label>
+    <label class="fsel"><span>Polarity</span>
+      <select id="fPol"><option value="any">&#177; Any</option><option value="pos">&#43; Buff</option><option value="neg">&#8722; Debuff</option></select>
+    </label>
+    <label class="fsel"><span>Moral Trait</span>
+      <select id="fTrait"><option value="all">All traits</option></select>
+    </label>
+    <label class="fsel"><span>Keyword</span>
+      <select id="fKw"><option value="all">All keywords</option></select>
+    </label>
+    <label class="fsel"><span>Show</span>
+      <select id="fShow"><option value="all">All</option><option value="in">In Scripture</option><option value="out">Not inscribed</option></select>
+    </label>
+    <label class="fsel"><span>Sort</span>
+      <select id="sort"><option value="id">Set order</option><option value="name">Name</option><option value="power">Power</option><option value="net">Net stats</option></select>
+    </label>
+    <div class="btnrow">
+      <div class="tbtn" id="all">Inscribe all</div>
+      <div class="tbtn" id="clear">Clear</div>
+    </div>
+  </div>
+
+  <p class="count" id="showing"></p>
+  <div class="grid" id="grid"></div>
+
+  <!-- floating quick-add -->
+  <div class="newverse" id="fabNew" title="Create a new Verse">+ Verse</div>
+
+  <!-- editor modal -->
+  <div class="modal" id="modal">
+    <div class="sheet" id="sheet">
+      <h2 id="mTitle">New Verse</h2>
+      <p class="sub">Author a full Verse. Power must sit in the Tier band. <b>Stat effects are for Standard &amp; Doctrine only</b> — Sacred &amp; Divine are text-first (their power lives in the rules, rarely in +/- stats) and must carry a scaling downside (self-balancing pillar).</p>
+
+      <div class="row2">
+        <div class="fld"><label>Name</label><input id="mName" type="text" placeholder="e.g. Maw That Never Fills" /></div>
+        <div class="fld"><label>ID</label><input id="mId" type="text" placeholder="auto e.g. MAW-C01" /></div>
+      </div>
+
+      <div class="row2">
+        <div class="fld"><label>Tier</label>
+          <select id="mTier">
+            <option value="Standard">Standard (1–2) · grey</option>
+            <option value="Doctrine">Doctrine (2–4) · green</option>
+            <option value="Sacred">Sacred (4–6) · purple</option>
+            <option value="Divine">Divine (7+) · gold</option>
+          </select>
+        </div>
+        <div class="fld"><label>Power</label><input id="mPower" type="number" step="1" min="0" /></div>
+      </div>
+
+      <div class="row2">
+        <div class="fld"><label>God</label><select id="mGod"></select>
+          <div class="locked-note" id="mLockNote"></div>
+        </div>
+        <div class="fld"><label>Faction (auto from trait/God, override allowed)</label>
+          <select id="mFaction">
+            <option value="Neutral">Neutral</option>
+            <option value="Heroic">Heroic</option>
+            <option value="Villainous">Villainous</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="fld"><label>Moral Trait(s) <span id="mTraitHint" class="locked-note"></span></label>
+        <div class="chips" id="mTraits"></div>
+      </div>
+
+      <div class="fld"><label>Keywords</label><div class="chips" id="mKws"></div></div>
+
+      <div class="fld" id="mEffsFld"><label>Stat Effects <span class="locked-note" id="mEffsHint"></span></label>
+        <div class="effrows" id="mEffs"></div>
+        <button class="addeff" id="addEff" type="button">+ add stat effect</button>
+      </div>
+
+      <div class="fld"><label>Rules Text (keyword rules; carries the scaling cost for Sacred/Divine)</label>
+        <textarea id="mText" placeholder='e.g. Devour "3". Gain +1 ATK per Devour Counter; each Counter also lowers your DEF by 1.'></textarea>
+      </div>
+      <div class="fld"><label>Flavor</label><textarea id="mFlavor" placeholder="One evocative line."></textarea></div>
+
+      <input type="hidden" id="mGodLocked" value="false" />
+      <label class="chip" id="mLockToggle" style="display:inline-block;margin-bottom:6px;">🔒 God-Locked</label>
+
+      <div class="vmsg" id="mMsg"></div>
+
+      <div class="acts">
+        <button class="del" id="mDelete" type="button" style="display:none;">Delete</button>
+        <div class="fspace"></div>
+        <button class="cancel" id="mCancel" type="button">Cancel</button>
+        <button class="save" id="mSave" type="button">Save Verse</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- god editor modal -->
+  <div class="modal" id="gmodal">
+    <div class="sheet" id="gsheet">
+      <h2 id="gTitle">New God</h2>
+      <p class="sub">A God is a Faction + a Moral-Trait allow-list + one God Rule (a modifier-Rule source). Devotees may inscribe Neutral Verses + this God's own Verses + any Verse matching a favored trait.</p>
+
+      <div class="row2">
+        <div class="fld"><label>Name</label><input id="gName" type="text" placeholder="e.g. The Radiant Judge" /></div>
+        <div class="fld"><label>Faction</label>
+          <select id="gFaction"><option value="Villainous">Villainous</option><option value="Heroic">Heroic</option></select>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="fld"><label>Accent color</label><input id="gAccent" type="text" placeholder="#c9a227" /></div>
+        <div class="fld"><label>Identity</label><input id="gIdentity" type="text" placeholder="Judgment / control" /></div>
+      </div>
+
+      <div class="fld"><label>Favored Moral Traits (allow-list — Gods may mix sins &amp; virtues)</label>
+        <div class="chips" id="gTraits"></div>
+      </div>
+
+      <div class="fld"><label>Tagline</label><input id="gTagline" type="text" placeholder="One evocative line." /></div>
+
+      <div class="row2">
+        <div class="fld"><label>God Rule — Name</label><input id="gRuleName" type="text" placeholder="e.g. Verdict" /></div>
+        <div class="fld"><label>&nbsp;</label><input id="gAccentPrev" type="text" readonly style="text-align:center;" /></div>
+      </div>
+      <div class="fld"><label>God Rule — Text (HTML &lt;b&gt; allowed)</label>
+        <textarea id="gRuleText" placeholder="Every 3 Levels, ..."></textarea>
+      </div>
+
+      <div class="vmsg" id="gMsg"></div>
+
+      <div class="acts">
+        <button class="del" id="gDelete" type="button" style="display:none;">Delete</button>
+        <div class="fspace"></div>
+        <button class="cancel" id="gCancel" type="button">Cancel</button>
+        <button class="save" id="gSave" type="button">Save God</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    100 Verses &middot; 36 Neutral core + 16 signature &times; 4 gods (Maw &middot; Tempest &middot; Warden &middot; Saint).
+    Filter by <b>God</b> to build one devotee&rsquo;s deck &mdash; Neutral + that God&rsquo;s Verses, within the <b>60</b> Power budget (min 30 Verses, singleton).
+    Pair with the <a href="moderate.html">handbook</a> for the keyword rules.
+  </footer>
+</div>
+
+<!-- GitHub sync modal -->
+<div class="modal" id="smodal">
+  <div class="sheet">
+    <h2>&#9729; GitHub Sync</h2>
+    <p class="sub">One private repo holds <b>verses.json</b> &mdash; the same file your phone, PC, and the Unreal importer read. Your token is stored only in this browser (this device).</p>
+    <div class="fld"><label>Personal access token &mdash; fine-grained, Contents: Read &amp; write</label><input type="text" id="ghToken" placeholder="github_pat_&hellip;" autocomplete="off" spellcheck="false" /></div>
+    <div class="row2">
+      <div class="fld"><label>Owner (your username / org)</label><input type="text" id="ghOwner" placeholder="your-username" spellcheck="false" /></div>
+      <div class="fld"><label>Repo</label><input type="text" id="ghRepo" placeholder="dr-verse-data" spellcheck="false" /></div>
+    </div>
+    <div class="row2">
+      <div class="fld"><label>Branch</label><input type="text" id="ghBranch" placeholder="main" spellcheck="false" /></div>
+      <div class="fld"><label>File path in repo</label><input type="text" id="ghPath" placeholder="verses.json" spellcheck="false" /></div>
+    </div>
+    <div class="vmsg" id="ghMsg" style="display:none"></div>
+    <div class="acts">
+      <button class="save" id="ghSaveBtn">Save settings</button>
+      <button class="cancel" id="ghLoadBtn">&#11015; Load from GitHub</button>
+      <button class="cancel" id="ghPubBtn">&#11014; Publish now</button>
+      <div class="fspace"></div>
+      <button class="cancel" id="ghClose">Close</button>
+    </div>
+  </div>
+</div>
+<script src="verses.js"></script>
+<script>
+(function(){
+  var DATA = (window.DR_VERSES || {});
+  var META = DATA._meta || {stats:{}};
+  var VERSES = (DATA.verses || []).slice();
+  var STAT = META.stats || {ATK:"Attack",HP:"Health",SPD:"Speed",DEF:"Armor",ATKSPD:"Attack Speed"};
+  var GODS = META.gods || {};
+  var DISK_GODS = {}; Object.keys(GODS).forEach(function(k){ DISK_GODS[k]=GODS[k]; });
+  var GLYPHS = ["\u16A0","\u16A2","\u16A6","\u16B1","\u16B2","\u16B7","\u16BE","\u16C1","\u16C7","\u16CB","\u16D2","\u16D6","\u16DA","\u16DD","\u16DF"];
+  var MIN_VERSES = 30, MAX_POWER = 60;
+
+  // ===== authoring rules (mirror of dr-verse-forge lexicon: owner-locked DEC-0031-A..D) =====
+  var TIER_BANDS = { Standard:[1,2], Doctrine:[2,4], Sacred:[4,6], Divine:[7,99] };
+  // DEC-0031-E: rarity removed (tiers only). Stat effects are reserved for Standard/Doctrine;
+  // Sacred/Divine are text-first (power lives in rules, rarely in +/- stats).
+  var STAT_TIERS = { Standard:true, Doctrine:true, Sacred:false, Divine:false };
+  var TIER_COLOR = { Standard:"#c3cbd6", Doctrine:"#37c46b", Sacred:"#c39bf0", Divine:"#f0c04a" };
+  var SINS    = ["Pride","Greed","Lust","Envy","Gluttony","Wrath","Sloth"];
+  var VIRTUES = ["Humility","Charity","Chastity","Kindness","Temperance","Patience","Diligence"];
+  var TRAIT_FACTION = {};
+  SINS.forEach(function(t){TRAIT_FACTION[t]="Villainous";});
+  VIRTUES.forEach(function(t){TRAIT_FACTION[t]="Heroic";});
+  var STAT_KEYS = ["ATK","HP","SPD","DEF","ATKSPD"];
+  var LS_KEY = "dr_verse_overrides_v1";
+  // known keyword vocabulary (DEC-0031-B) for the chip picker; edits still allow free text via rules
+  var KEYWORD_VOCAB = ["On","While","Threshold","Sanctify","Reverent","Ascend","Sacrifice","Revive",
+    "Martyr","Devour","Surge","Smite","Rebuke","Seal","Desecrate","Synchronize","Lament","Absolve",
+    "Zealot","Relic","Ordain","Corrupt","Redeem"];
+
+  // ---- localStorage overrides: verse upserts/deletes + god upserts/deletes, merged over the on-disk set ----
+  function loadOverrides(){
+    try {
+      var o = JSON.parse(localStorage.getItem(LS_KEY)) || {};
+      return {upserts:o.upserts||{}, deletes:o.deletes||[], godUpserts:o.godUpserts||{}, godDeletes:o.godDeletes||[]};
+    } catch(e){ return {upserts:{},deletes:[],godUpserts:{},godDeletes:[]}; }
+  }
+  function saveOverrides(ov){ try{ localStorage.setItem(LS_KEY, JSON.stringify(ov)); }catch(e){} }
+  var OV = loadOverrides();
+  function applyOverrides(){
+    // start from a fresh copy of the on-disk verses, drop deletes, apply/append upserts
+    var base = (DATA.verses || []).slice();
+    var byId = {}; base.forEach(function(v){ byId[v.id]=v; });
+    (OV.deletes||[]).forEach(function(id){ delete byId[id]; });
+    Object.keys(OV.upserts||{}).forEach(function(id){ byId[id] = OV.upserts[id]; });
+    // preserve on-disk order, then append new ids
+    var order = base.map(function(v){return v.id;}).filter(function(id){return byId[id];});
+    Object.keys(byId).forEach(function(id){ if(order.indexOf(id)<0) order.push(id); });
+    VERSES = order.map(function(id){ return byId[id]; });
+  }
+  function applyGodOverrides(){
+    GODS = {};
+    Object.keys(DISK_GODS).forEach(function(k){ GODS[k]=DISK_GODS[k]; });
+    (OV.godDeletes||[]).forEach(function(name){ delete GODS[name]; });
+    Object.keys(OV.godUpserts||{}).forEach(function(name){ GODS[name]=OV.godUpserts[name]; });
+  }
+  function hasOverrides(){
+    return Object.keys(OV.upserts).length || OV.deletes.length ||
+           Object.keys(OV.godUpserts).length || OV.godDeletes.length;
+  }
+
+  // state
+  var inScripture = {};                 // default: empty deck (100-Verse browser)
+  applyOverrides();
+  applyGodOverrides();
+  VERSES.forEach(function(v){ inScripture[v.id] = false; });
+  var fTier="all", fGod="all", fStat="any", fPol="any", fTrait="all", fKw="all", fShow="all", fQuery="", fSort="id";
+  function traitOf(v){ return (v.traits && v.traits.length) ? v.traits : ["Neutral"]; }
+  // Which Verses may be inscribed under a given God: Neutral Verses (any) + the God's own
+  // Verses (incl. God-Locked) + any Verse sharing one of the God's favored Moral Traits.
+  function legalForGod(v, godName){
+    if(godName==="all") return true;
+    var g=GODS[godName]; if(!g) return true;
+    if(!v.god && (!v.traits || !v.traits.length)) return true;   // Neutral Verse: legal under any God
+    if(v.god===godName) return true;                             // this God's own Verses
+    var allow=g.traits||[];
+    return (v.traits||[]).some(function(t){ return allow.indexOf(t)>=0; });
+  }
+  function legalPoolCount(name){ return VERSES.filter(function(v){return legalForGod(v,name);}).length; }
+
+  // ---- ember sky ----
+  (function(){
+    var sky = document.getElementById("sky"), n = 34;
+    for(var i=0;i<n;i++){
+      var m = document.createElement("div"); m.className="mote";
+      var warm = Math.random()<0.6;
+      var sz = warm ? (1.5+Math.random()*2.5) : (1+Math.random()*2);
+      m.style.width=sz+"px"; m.style.height=sz+"px";
+      m.style.left=(Math.random()*100)+"%";
+      m.style.background = warm ? "#ff9a3c" : "#cfe4ff";
+      m.style.boxShadow = warm ? "0 0 8px #ff8a2a" : "0 0 6px #9ec5ff";
+      var dur = 9+Math.random()*14;
+      m.style.animationDuration=dur+"s";
+      m.style.animationDelay=(-Math.random()*dur)+"s";
+      sky.appendChild(m);
+    }
+  })();
+
+  function net(v){ return v.effects.reduce(function(a,e){return a+e.value;},0); }
+  function touches(v,stat){ return v.effects.some(function(e){return e.stat===stat;}); }
+
+  function effHTML(e){
+    var good = e.value>0;
+    var sign = good ? "+" : "\u2212";
+    return '<span class="eff '+(good?"good":"bad")+'">'+sign+Math.abs(e.value)+
+           ' <span class="s">'+e.stat.replace("ATKSPD","AS")+'</span></span>';
+  }
+
+  function card(v, idx){
+    var cls = "scroll "+String(v.tier).toLowerCase()+(inScripture[v.id]?" in":"");
+    var glyph = GLYPHS[idx % GLYPHS.length];
+    var effs = v.effects.slice().sort(function(a,b){return b.value-a.value;}).map(effHTML).join("");
+    var rt  = v.text ? '<p class="rtext">'+v.text+'</p>' : "";
+    var kws = (v.keywords&&v.keywords.length)
+      ? '<div class="kws">'+v.keywords.map(function(k){return '<span class="kw">'+k+'</span>';}).join("")+'</div>' : "";
+    var godTag = v.god
+      ? '<span class="godtag" title="God'+(v.godLocked?" \u2014 God-Locked":"")+'">'+v.god.replace(/^The /,"")+(v.godLocked?" \uD83D\uDD12":"")+'</span>'
+      : "";
+    return ''+
+      '<div class="'+cls+'" data-id="'+v.id+'">'+
+        '<button class="editbtn" data-edit="'+v.id+'" title="Edit this Verse">\u270E</button>'+
+        '<span class="inmark">\u2713 Inscribed</span>'+
+        '<div class="rband">'+
+          '<span class="glyph">'+glyph+'</span>'+
+          '<span class="tier">'+v.tier+'</span>'+
+          '<span class="pwr"><span class="gem"></span>'+v.power+'</span>'+
+        '</div>'+
+        '<div class="body">'+
+          '<h3 class="vname">'+v.name+'</h3>'+
+          (effs?'<div class="fx">'+effs+'</div>':"")+
+          rt + kws +
+          '<p class="flavor">&ldquo;'+v.flavor+'&rdquo;</p>'+
+        '</div>'+
+        '<div class="foot">'+
+          '<span class="fac" title="Faction">'+v.faction+'</span>'+
+          '<span class="ttag" title="Moral Trait">'+traitOf(v).join(", ")+'</span>'+
+          godTag+
+        '</div>'+
+      '</div>';
+  }
+
+  function filtered(){
+    var out = VERSES.filter(function(v){
+      if(fTier!=="all" && v.tier!==fTier) return false;
+      if(fGod!=="all" && !legalForGod(v, fGod)) return false;
+      if(fKw!=="all" && (v.keywords||[]).indexOf(fKw)<0) return false;
+      if(fShow==="in"  && !inScripture[v.id]) return false;
+      if(fShow==="out" &&  inScripture[v.id]) return false;
+      if(fStat!=="any"){
+        var es = v.effects.filter(function(e){return e.stat===fStat;});
+        if(!es.length) return false;
+        if(fPol==="pos" && !es.some(function(e){return e.value>0;})) return false;
+        if(fPol==="neg" && !es.some(function(e){return e.value<0;})) return false;
+      }
+      if(fTrait!=="all" && traitOf(v).indexOf(fTrait)<0) return false;
+      if(fQuery){
+        var q=fQuery.toLowerCase();
+        if(v.name.toLowerCase().indexOf(q)<0 && (v.flavor||"").toLowerCase().indexOf(q)<0 && (v.text||"").toLowerCase().indexOf(q)<0) return false;
+      }
+      return true;
+    });
+    out.sort(function(a,b){
+      if(fSort==="name") return a.name.localeCompare(b.name);
+      if(fSort==="power") return b.power-a.power || a.name.localeCompare(b.name);
+      if(fSort==="net")   return net(b)-net(a) || a.name.localeCompare(b.name);
+      return a.id.localeCompare(b.id);
+    });
+    return out;
+  }
+
+  function godCount(name){ return VERSES.filter(function(v){return v.god===name;}).length; }
+  function renderGods(){
+    var host=document.getElementById("gods"); if(!host) return;
+    var names=Object.keys(GODS);
+    if(!names.length){ host.style.display="none"; return; }
+    host.innerHTML = names.map(function(name){
+      var g=GODS[name], acc=g.accent||"#ff8a2a", active=(fGod===name)?" active":"";
+      var traits=(g.traits||[]).map(function(t){return '<span class="gtr">'+t+'</span>';}).join("");
+      var r=g.rule||{name:"",text:""};
+      return '<div class="godcard'+active+'" data-god="'+name+'" style="--acc:'+acc+'">'+
+        '<button class="gedit" data-gedit="'+name+'" title="Edit this God">\u270E</button>'+
+        '<div class="ghead">'+
+          '<div><div class="gname">'+name.replace(/^The /,"")+'</div>'+
+          '<div class="gfac">'+(g.faction||"")+' &middot; '+(g.identity||"")+'</div></div></div>'+
+        '<p class="gtag">&ldquo;'+(g.tagline||"")+'&rdquo;</p>'+
+        '<div class="grule"><span class="rn">God Rule &mdash; '+r.name+'</span><span class="rt">'+r.text+'</span></div>'+
+        '<div class="gtraits">'+traits+'</div>'+
+        '<div class="gpick"><span class="gcount">'+godCount(name)+' signature &middot; '+legalPoolCount(name)+' legal</span>'+
+          '<button class="gbtn" type="button">'+(active?"\u2713 Devoted":"Filter to God")+'</button></div>'+
+      '</div>';
+    }).join("");
+    layoutGods();
+  }
+  function setGod(name){
+    fGod = (fGod===name) ? "all" : name;
+    var sel=document.getElementById("fGod"); if(sel) sel.value=fGod;
+    var i=godNames().indexOf(name); if(i>=0) gIndex=i;
+    renderGods(); render();
+  }
+
+  /* ---- God carousel (coverflow): center = focused God, neighbors peek ---- */
+  var gIndex=0, gDragMoved=false;
+  function godNames(){ return Object.keys(GODS); }
+  function gCards(){ var h=document.getElementById("gods"); return h?h.children:[]; }
+  function positionCards(pos){
+    var cards=gCards(), n=cards.length; if(!n) return;
+    var w=cards[0].offsetWidth||320, step=w*0.72;
+    for(var i=0;i<n;i++){
+      var d=i-pos, ad=Math.abs(d);
+      var s=Math.max(0.62, 1-0.15*ad);
+      var op = ad>3 ? 0 : Math.max(0, 1-0.13*ad);      // center 1, +/-1 .87, +/-2 .74, +/-3 .61
+      var c=cards[i];
+      c.style.transform="translateX(calc(-50% + "+(d*step).toFixed(1)+"px)) scale("+s.toFixed(3)+")";
+      c.style.opacity=op.toFixed(3);
+      c.style.filter="none";
+      c.style.zIndex=String(100-Math.round(ad*10));
+      c.style.pointerEvents = ad>3 ? "none" : "auto";
+      c.classList.toggle("focus", ad<0.5);
+    }
+  }
+  function updateDots(){
+    var dc=document.getElementById("cardots"); if(!dc) return;
+    var cards=gCards(), n=cards.length, names=godNames(), html="";
+    for(var i=0;i<n;i++){
+      var dev = names[i]===fGod ? " devoted" : "";
+      html+='<span class="dot'+(i===gIndex?" on":"")+dev+'" data-i="'+i+'" title="'+(names[i]||"").replace(/^The /,"")+'"></span>';
+    }
+    dc.innerHTML=html;
+  }
+  function layoutGods(){
+    var host=document.getElementById("gods"); if(!host) return;
+    var cards=gCards(), n=cards.length;
+    if(!n){ host.style.height="0"; updateDots(); return; }
+    gIndex=Math.max(0, Math.min(n-1, gIndex));
+    positionCards(gIndex);
+    host.style.height=(cards[gIndex].offsetHeight||280)+"px";
+    updateDots();
+  }
+  function goGod(i){ var n=gCards().length; if(!n) return; gIndex=Math.max(0,Math.min(n-1,i)); layoutGods(); }
+
+  function render(){
+    var list = filtered(), grid = document.getElementById("grid");
+    grid.innerHTML = list.length ? list.map(card).join("") :
+      '<div class="empty">No Verses match these rites.</div>';
+    document.getElementById("showing").textContent =
+      "Showing "+list.length+" of "+VERSES.length+" Verses";
+    updateAltar();
+  }
+
+  function updateAltar(){
+    var ids = Object.keys(inScripture).filter(function(k){return inScripture[k];});
+    var count = ids.length;
+    var power = ids.reduce(function(a,id){
+      var v = VERSES.find(function(x){return x.id===id;}); return a+(v?v.power:0);
+    },0);
+    document.getElementById("vCount").innerHTML = count+'<small>/30 min</small>';
+    document.getElementById("pText").textContent = power+" / "+MAX_POWER;
+    var pct = Math.min(100, Math.round(power/MAX_POWER*100));
+    var fill = document.getElementById("pFill");
+    fill.style.width = pct+"%";
+    fill.style.background = power>MAX_POWER
+      ? "linear-gradient(90deg,#8f2a1f,#f85149)"
+      : "linear-gradient(90deg,#c9781f,#ff9a3c,#ffc46b)";
+
+    var okCount = count>=MIN_VERSES, okPower = power<=MAX_POWER;
+    var legal = okCount && okPower;   // singleton guaranteed: catalog is unique
+    var vd = document.getElementById("verdict");
+    vd.className = "verdict "+(legal?"ok":"no");
+    vd.textContent = legal ? "LEGAL SCRIPTURE" : "ILLEGAL";
+    var reasons = [];
+    if(!okCount) reasons.push("need "+(MIN_VERSES-count)+" more Verse(s) &mdash; minimum "+MIN_VERSES);
+    if(!okPower) reasons.push("over budget by "+(power-MAX_POWER)+" Power");
+    document.getElementById("why").innerHTML = legal
+      ? "Singleton \u2713 &middot; "+count+" Verses \u2713 &middot; "+power+"/"+MAX_POWER+" Power \u2713 &nbsp; <b>"+(MAX_POWER-power)+" Power free</b> for God signature Verses."
+      : reasons.join(" &middot; ");
+  }
+
+  // ================= EDITOR: create / edit Verses & Gods (DEC-0031-E rules) =================
+  function qs(id){ return document.getElementById(id); }
+  function openModal(id){ qs(id).classList.add("open"); }
+  function closeModal(id){ qs(id).classList.remove("open"); }
+  function tierBand(t){ return TIER_BANDS[t] || [1,99]; }
+  function statsAllowed(t){ return !!STAT_TIERS[t]; }
+  function DISK_HAS(id){ return (DATA.verses||[]).some(function(v){return v.id===id;}); }
+
+  var editingId = null;   // null => new verse
+  var vTraits = [];       // selected moral traits
+  var vKws = [];          // selected keywords
+
+  function buildTraitChips(host, selected, onChange){
+    host.innerHTML = "";
+    var mk = function(t, kind){
+      var c=document.createElement("span");
+      c.className="chip "+kind+(selected.indexOf(t)>=0?" on":"");
+      c.textContent=t; c.setAttribute("data-t",t);
+      c.addEventListener("click", function(){
+        var i=selected.indexOf(t);
+        if(i>=0) selected.splice(i,1); else selected.push(t);
+        c.classList.toggle("on");
+        if(onChange) onChange();
+      });
+      host.appendChild(c);
+    };
+    SINS.forEach(function(t){ mk(t,"sin"); });
+    VIRTUES.forEach(function(t){ mk(t,"vir"); });
+  }
+  function buildKwChips(host, selected){
+    host.innerHTML="";
+    KEYWORD_VOCAB.forEach(function(k){
+      var c=document.createElement("span");
+      c.className="chip"+(selected.indexOf(k)>=0?" on":"");
+      c.textContent=k; c.setAttribute("data-k",k);
+      c.addEventListener("click", function(){
+        var i=selected.indexOf(k);
+        if(i>=0) selected.splice(i,1); else selected.push(k);
+        c.classList.toggle("on");
+      });
+      host.appendChild(c);
+    });
+  }
+  function addEffRow(stat, value){
+    var host=qs("mEffs");
+    var row=document.createElement("div"); row.className="effrow";
+    var sel=document.createElement("select");
+    STAT_KEYS.forEach(function(s){ var o=document.createElement("option"); o.value=s; o.textContent=s+" \u2014 "+(STAT[s]||s); if(s===stat)o.selected=true; sel.appendChild(o); });
+    var num=document.createElement("input"); num.type="number"; num.step="1"; num.value=(value==null?1:value);
+    var del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="\u2715";
+    del.addEventListener("click", function(){ host.removeChild(row); });
+    row.appendChild(sel); row.appendChild(num); row.appendChild(del);
+    host.appendChild(row);
+  }
+  function readEffs(){
+    var out=[], rows=qs("mEffs").querySelectorAll(".effrow");
+    for(var i=0;i<rows.length;i++){
+      var sel=rows[i].querySelector("select"), num=rows[i].querySelector("input");
+      var val=parseInt(num.value,10); if(isNaN(val)||val===0) continue;
+      out.push({stat:sel.value, value:val});
+    }
+    return out;
+  }
+  function populateGodSelect(sel, current){
+    sel.innerHTML='<option value="">\u2014 Neutral (no God) \u2014</option>';
+    Object.keys(GODS).forEach(function(name){
+      var o=document.createElement("option"); o.value=name; o.textContent=name.replace(/^The /,"");
+      if(name===current) o.selected=true; sel.appendChild(o);
+    });
+  }
+  function syncTierUI(){
+    var t=qs("mTier").value, band=tierBand(t), allow=statsAllowed(t);
+    qs("mEffsFld").style.opacity = allow?"1":".55";
+    qs("addEff").style.display = allow?"inline-block":"none";
+    qs("mEffsHint").textContent = allow
+      ? "\u2014 Standard/Doctrine may carry +/- stats"
+      : "\u2014 "+t+" is text-first: power lives in the rules, not in stats";
+    var p=qs("mPower"), pv=parseInt(p.value,10);
+    if(isNaN(pv)||pv<band[0]||pv>band[1]) p.value=band[0];
+  }
+  function godLockNote(){
+    var g=qs("mGod").value, note=qs("mLockNote"), hint=qs("mTraitHint");
+    if(g && GODS[g]){
+      var allow=(GODS[g].traits||[]).join(", ");
+      note.textContent="Devotees see Neutral + "+g.replace(/^The /,"")+"'s Verses + favored traits.";
+      hint.textContent="\u2014 "+g.replace(/^The /,"")+" favors: "+allow;
+    } else { note.textContent=""; hint.textContent="\u2014 Neutral Verse (legal under any God)"; }
+  }
+  function factionFromTraits(){
+    if(vTraits.length) qs("mFaction").value=TRAIT_FACTION[vTraits[0]];
+  }
+  function suggestId(){
+    var g=qs("mGod").value, pre=g?g.replace(/^The /,"").replace(/[^A-Za-z]/g,"").slice(0,3).toUpperCase():"VRS";
+    if(!pre) pre="VRS";
+    var n=1, id;
+    do { id=pre+"-"+(n<10?"0"+n:n); n++; } while(VERSES.some(function(v){return v.id===id;}) && n<300);
+    return id;
+  }
+  function openVerseEditor(id){
+    editingId = id || null;
+    var v = id ? VERSES.find(function(x){return x.id===id;}) : null;
+    qs("mTitle").textContent = v ? "Edit Verse" : "New Verse";
+    qs("mName").value = v ? v.name : "";
+    qs("mId").value = v ? v.id : "";
+    qs("mTier").value = v ? v.tier : "Standard";
+    qs("mPower").value = v ? v.power : TIER_BANDS.Standard[0];
+    populateGodSelect(qs("mGod"), v ? v.god : "");
+    qs("mFaction").value = v ? v.faction : "Neutral";
+    vTraits = v ? (v.traits||[]).slice() : [];
+    vKws = v ? (v.keywords||[]).slice() : [];
+    buildTraitChips(qs("mTraits"), vTraits, factionFromTraits);
+    buildKwChips(qs("mKws"), vKws);
+    qs("mEffs").innerHTML="";
+    if(v){ (v.effects||[]).forEach(function(e){ addEffRow(e.stat, e.value); }); }
+    qs("mText").value = v ? (v.text||"") : "";
+    qs("mFlavor").value = v ? (v.flavor||"") : "";
+    qs("mGodLocked").value = (v && v.godLocked) ? "true":"false";
+    qs("mLockToggle").classList.toggle("on", !!(v && v.godLocked));
+    qs("mDelete").style.display = v ? "inline-block":"none";
+    qs("mMsg").className="vmsg"; qs("mMsg").innerHTML="";
+    syncTierUI(); godLockNote();
+    openModal("modal");
+  }
+  function collectVerse(){
+    var god=qs("mGod").value;
+    return {
+      id:(qs("mId").value.trim() || suggestId()),
+      name:qs("mName").value.trim(),
+      tier:qs("mTier").value,
+      power:parseInt(qs("mPower").value,10)||0,
+      faction:qs("mFaction").value,
+      traits:vTraits.slice(),
+      god:god||"",
+      godLocked:(qs("mGodLocked").value==="true") && !!god,
+      keywords:vKws.slice(),
+      effects:readEffs(),
+      text:qs("mText").value.trim(),
+      flavor:qs("mFlavor").value.trim()
+    };
+  }
+  function isSelfBalancing(v){
+    if(v.effects.some(function(e){return e.value<0;})) return true;
+    return /\b(cost|costs|lose|loses|lower|lowers|reduce|reduces|sacrifice|pay|pays|drain|drains|weaken|weakens|discard|forfeit)\b/i.test(v.text||"");
+  }
+  function validateVerse(v){
+    var errs=[], warns=[];
+    if(!v.name) errs.push("Name is required.");
+    if(!v.id) errs.push("ID is required.");
+    if(v.id!==editingId && VERSES.some(function(x){return x.id===v.id;})) errs.push("ID \""+v.id+"\" already exists.");
+    var band=tierBand(v.tier);
+    if(v.power<band[0]||v.power>band[1]) errs.push(v.tier+" Power must be "+band[0]+"\u2013"+band[1]+" (got "+v.power+").");
+    if(v.power>MAX_POWER) errs.push("Power "+v.power+" exceeds the cap of "+MAX_POWER+".");
+    if(v.traits.length){
+      var want=TRAIT_FACTION[v.traits[0]];
+      if(v.traits.some(function(t){return TRAIT_FACTION[t]!==want;})) warns.push("Verse mixes sins and virtues \u2014 unusual.");
+      if(v.faction!==want) errs.push("Faction should be "+want+" to match trait "+v.traits[0]+".");
+    } else if(v.faction!=="Neutral"){
+      warns.push("No Moral Trait set but Faction is "+v.faction+" \u2014 expected Neutral.");
+    }
+    if(v.god && GODS[v.god]){
+      var allow=GODS[v.god].traits||[];
+      var bad=v.traits.filter(function(t){return allow.indexOf(t)<0;});
+      if(bad.length) warns.push("Trait(s) "+bad.join(", ")+" are outside "+v.god.replace(/^The /,"")+"'s favored list.");
+    }
+    if(v.godLocked && !v.god) errs.push("God-Locked requires a God.");
+    if(!statsAllowed(v.tier)){
+      if(v.effects.length) warns.push(v.tier+" Verses are text-first \u2014 prefer rules text over +/- stats.");
+      if(!v.text) errs.push(v.tier+" Verses need rules text (their power lives in the text).");
+      if(!isSelfBalancing(v)) errs.push(v.tier+" Verses must be self-balancing: carry a scaling downside (a negative effect, or 'cost'/'lose'/'sacrifice' in the text).");
+    } else if(!v.effects.length && !v.text){
+      warns.push("Standard/Doctrine Verse has no stat effects and no text.");
+    }
+    return {errs:errs, warns:warns};
+  }
+  function showMsg(el, r){
+    var w = r.warns.length ? "<b>Notes:</b><ul>"+r.warns.map(function(x){return "<li>"+x+"</li>";}).join("")+"</ul>" : "";
+    if(r.errs.length){
+      el.className="vmsg bad";
+      el.innerHTML="<b>Fix before saving:</b><ul>"+r.errs.map(function(x){return "<li>"+x+"</li>";}).join("")+"</ul>"+w;
+    } else {
+      el.className="vmsg ok";
+      el.innerHTML="Looks good."+(w?" "+w:"");
+    }
+    return r.errs.length===0;
+  }
+  function saveVerse(){
+    var v=collectVerse(), r=validateVerse(v);
+    if(!showMsg(qs("mMsg"), r)) return;
+    if(editingId && editingId!==v.id){
+      if(DISK_HAS(editingId)){ if(OV.deletes.indexOf(editingId)<0) OV.deletes.push(editingId); }
+      else delete OV.upserts[editingId];
+      delete inScripture[editingId];
+    }
+    OV.upserts[v.id]=v;
+    var di=OV.deletes.indexOf(v.id); if(di>=0) OV.deletes.splice(di,1);
+    saveOverrides(OV); applyOverrides();
+    if(inScripture[v.id]===undefined) inScripture[v.id]=false;
+    refreshEnums(); renderGods(); render(); updateOvNote();
+    closeModal("modal");
+  }
+  function deleteVerse(){
+    if(!editingId){ closeModal("modal"); return; }
+    if(!confirm("Delete Verse "+editingId+"?")) return;
+    if(DISK_HAS(editingId)){ if(OV.deletes.indexOf(editingId)<0) OV.deletes.push(editingId); }
+    delete OV.upserts[editingId];
+    delete inScripture[editingId];
+    saveOverrides(OV); applyOverrides();
+    refreshEnums(); renderGods(); render(); updateOvNote();
+    closeModal("modal");
+  }
+
+  // ---------- God editor ----------
+  var editingGod = null, gTraitsSel = [];
+  function openGodEditor(name){
+    editingGod = name || null;
+    var g = name ? GODS[name] : null;
+    qs("gTitle").textContent = g ? "Edit God" : "New God";
+    qs("gName").value = name || "";
+    qs("gFaction").value = g ? (g.faction||"Villainous") : "Villainous";
+    qs("gAccent").value = g ? (g.accent||"#c9a227") : "#c9a227";
+    qs("gIdentity").value = g ? (g.identity||"") : "";
+    gTraitsSel = g ? (g.traits||[]).slice() : [];
+    buildTraitChips(qs("gTraits"), gTraitsSel, null);
+    qs("gTagline").value = g ? (g.tagline||"") : "";
+    qs("gRuleName").value = (g && g.rule) ? (g.rule.name||"") : "";
+    qs("gRuleText").value = (g && g.rule) ? (g.rule.text||"") : "";
+    qs("gAccentPrev").value = qs("gAccent").value;
+    qs("gAccentPrev").style.color = qs("gAccent").value;
+    qs("gDelete").style.display = name ? "inline-block":"none";
+    qs("gMsg").className="vmsg"; qs("gMsg").innerHTML="";
+    openModal("gmodal");
+  }
+  function collectGod(){
+    return {
+      name:qs("gName").value.trim(),
+      faction:qs("gFaction").value,
+      accent:qs("gAccent").value.trim()||"#c9a227",
+      identity:qs("gIdentity").value.trim(),
+      traits:gTraitsSel.slice(),
+      tagline:qs("gTagline").value.trim(),
+      rule:{name:qs("gRuleName").value.trim(), text:qs("gRuleText").value.trim()}
+    };
+  }
+  function validateGod(g){
+    var errs=[], warns=[];
+    if(!g.name) errs.push("God name is required.");
+    if(g.name!==editingGod && GODS[g.name]) errs.push("A God named \""+g.name+"\" already exists.");
+    if(!g.traits.length) errs.push("Pick at least one favored Moral Trait.");
+    if(!g.rule.name) errs.push("God Rule needs a name.");
+    if(!g.rule.text) errs.push("God Rule needs text.");
+    return {errs:errs, warns:warns};
+  }
+  function saveGod(){
+    var g=collectGod(), r=validateGod(g);
+    if(!showMsg(qs("gMsg"), r)) return;
+    var name=g.name; delete g.name;
+    if(editingGod && editingGod!==name){
+      if(DISK_GODS[editingGod]){ if(OV.godDeletes.indexOf(editingGod)<0) OV.godDeletes.push(editingGod); }
+      else delete OV.godUpserts[editingGod];
+    }
+    OV.godUpserts[name]=g;
+    var di=OV.godDeletes.indexOf(name); if(di>=0) OV.godDeletes.splice(di,1);
+    saveOverrides(OV); applyGodOverrides();
+    refreshEnums(); renderGods(); render(); updateOvNote();
+    closeModal("gmodal");
+  }
+  function deleteGod(){
+    if(!editingGod){ closeModal("gmodal"); return; }
+    var sigs=godCount(editingGod);
+    var msg = sigs>0 ? editingGod+" has "+sigs+" signature Verse(s). Delete the God anyway? (Verses keep their tag.)" : "Delete God "+editingGod+"?";
+    if(!confirm(msg)) return;
+    if(DISK_GODS[editingGod]){ if(OV.godDeletes.indexOf(editingGod)<0) OV.godDeletes.push(editingGod); }
+    delete OV.godUpserts[editingGod];
+    saveOverrides(OV); applyGodOverrides();
+    refreshEnums(); renderGods(); render(); updateOvNote();
+    closeModal("gmodal");
+  }
+
+  // ---------- export / reset ----------
+  function download(fn, text){
+    var blob=new Blob([text], {type:"text/plain"});
+    var a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=fn;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 500);
+  }
+  function syncedMeta(){
+    var m={}; Object.keys(META).forEach(function(k){ m[k]=META[k]; });
+    m.gods=GODS; return m;
+  }
+  function exportVersesJs(){ download("verses.js", "window.DR_VERSES = "+JSON.stringify({_meta:syncedMeta(), verses:VERSES})+";\n"); }
+  function exportVersesJson(){ download("verses.json", JSON.stringify({_meta:syncedMeta(), verses:VERSES}, null, 2)); }
+  function exportGodsJson(){ download("gods.json", JSON.stringify({gods:GODS}, null, 2)); }
+
+  // ===== GitHub sync: one private repo is the source of truth for verses.json =====
+  // Token is kept only in this browser's localStorage. Reads/writes go straight to the
+  // GitHub REST API, so the same data appears on PC and phone with no third copy.
+  var GH_KEY="dr_gh_cfg_v1", GH_SHA=null;
+  function ghCfg(){ try{ return JSON.parse(localStorage.getItem(GH_KEY))||{}; }catch(e){ return {}; } }
+  function ghStore(c){ try{ localStorage.setItem(GH_KEY, JSON.stringify(c)); }catch(e){} }
+  function ghHeaders(c){ return {"Authorization":"token "+c.token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}; }
+  function ghUrl(c){ return "https://api.github.com/repos/"+encodeURIComponent(c.owner)+"/"+encodeURIComponent(c.repo)+"/contents/"+c.path.split("/").map(encodeURIComponent).join("/"); }
+  function b64enc(s){ return btoa(unescape(encodeURIComponent(s))); }
+  function b64dec(s){ return decodeURIComponent(escape(atob(s.replace(/\n/g,"")))); }
+  function ghMsg(kind,html){ var el=qs("ghMsg"); if(!el) return; el.className="vmsg"+(kind?(" "+kind):""); el.style.display=html?"block":"none"; el.innerHTML=html||""; }
+  function ghReady(c){ return c && c.token && c.owner && c.repo; }
+  function ghApplyData(data){
+    DATA=data; META=data._meta||{stats:{}}; STAT=META.stats||STAT;
+    DISK_GODS={}; var gg=META.gods||{}; Object.keys(gg).forEach(function(k){ DISK_GODS[k]=gg[k]; });
+    applyOverrides(); applyGodOverrides();
+    refreshEnums(); renderGods(); render(); updateOvNote();
+  }
+  function ghLoad(silent){
+    var c=ghCfg();
+    if(!ghReady(c)){ if(!silent) ghMsg("bad","Enter a token, owner and repo first."); return Promise.resolve(false); }
+    if(!silent) ghMsg("","Loading from GitHub&hellip;");
+    var url=ghUrl(c)+(c.branch?("?ref="+encodeURIComponent(c.branch)):"");
+    return fetch(url,{headers:ghHeaders(c),cache:"no-store"}).then(function(r){
+      if(!r.ok) throw new Error("HTTP "+r.status+(r.status===404?" \u2014 file/repo/branch not found":r.status===401?" \u2014 token rejected":r.status===403?" \u2014 forbidden (token scope?)":""));
+      return r.json();
+    }).then(function(j){
+      var data=JSON.parse(b64dec(j.content||"")); GH_SHA=j.sha;
+      ghApplyData(data);
+      if(!silent) ghMsg("ok","Loaded <b>"+VERSES.length+"</b> verses from "+c.owner+"/"+c.repo+".");
+      return true;
+    }).catch(function(e){ if(!silent) ghMsg("bad","Load failed: "+e.message); else console.warn("GitHub auto-load:",e.message); return false; });
+  }
+  function ghPublish(){
+    var c=ghCfg();
+    if(!ghReady(c)){ ghMsg("bad","Open \u2601 Sync and set a token, owner and repo first."); openModal("smodal"); return; }
+    ghMsg("","Publishing&hellip;");
+    var body=JSON.stringify({_meta:syncedMeta(), verses:VERSES}, null, 2);
+    var url=ghUrl(c), q=c.branch?("?ref="+encodeURIComponent(c.branch)):"";
+    fetch(url+q,{headers:ghHeaders(c),cache:"no-store"}).then(function(r){
+      return r.status===404?null:r.json();
+    }).then(function(cur){
+      var payload={message:"Update "+c.path+" via Scrolls "+new Date().toISOString(), content:b64enc(body)};
+      if(c.branch) payload.branch=c.branch;
+      if(cur && cur.sha) payload.sha=cur.sha;
+      return fetch(url,{method:"PUT",headers:ghHeaders(c),body:JSON.stringify(payload)});
+    }).then(function(r){
+      if(!r.ok) return r.json().then(function(j){ throw new Error("HTTP "+r.status+" "+(j.message||"")); });
+      return r.json();
+    }).then(function(j){
+      GH_SHA=j.content&&j.content.sha;
+      // committed content is now the baseline; clear local pending edits
+      DATA={_meta:syncedMeta(), verses:VERSES.slice()};
+      OV={upserts:{},deletes:[],godUpserts:{},godDeletes:[]}; saveOverrides(OV);
+      DISK_GODS={}; Object.keys(GODS).forEach(function(k){ DISK_GODS[k]=GODS[k]; });
+      updateOvNote();
+      ghMsg("ok","Published to <b>"+c.owner+"/"+c.repo+"</b>"+(j.commit&&j.commit.sha?(" &middot; commit "+j.commit.sha.slice(0,7)):"")+".");
+    }).catch(function(e){ ghMsg("bad","Publish failed: "+e.message); });
+  }
+  function ghSaveCfg(){
+    var c={token:qs("ghToken").value.trim(), owner:qs("ghOwner").value.trim(), repo:qs("ghRepo").value.trim(),
+           branch:(qs("ghBranch").value.trim()||"main"), path:(qs("ghPath").value.trim()||"verses.json")};
+    ghStore(c); ghMsg("ok","Settings saved on this device.");
+  }
+  function ghOpenModal(){
+    var c=ghCfg();
+    qs("ghToken").value=c.token||""; qs("ghOwner").value=c.owner||""; qs("ghRepo").value=c.repo||"";
+    qs("ghBranch").value=c.branch||"main"; qs("ghPath").value=c.path||"verses.json";
+    ghMsg(ghReady(c)?"":"bad", ghReady(c)?("Connected to <b>"+c.owner+"/"+c.repo+"</b>. Load pulls the latest; Publish pushes your edits.")
+                                        :"Not configured. Fill these in, Save, then Load.");
+    openModal("smodal");
+  }
+  function resetOverrides(){
+    if(!confirm("Discard all local edits and reload from disk?")) return;
+    try{ localStorage.removeItem(LS_KEY); }catch(e){}
+    location.reload();
+  }
+  function updateOvNote(){
+    var el=qs("ovNote"); if(!el) return;
+    var n=Object.keys(OV.upserts).length+OV.deletes.length+Object.keys(OV.godUpserts).length+OV.godDeletes.length;
+    el.innerHTML = n ? "<b>"+n+"</b> local edit(s) pending \u2014 Export to write to disk." : "No local edits.";
+  }
+
+  // ---- events ----
+  document.getElementById("grid").addEventListener("click", function(e){
+    var ed = e.target.closest(".editbtn");
+    if(ed){ openVerseEditor(ed.getAttribute("data-edit")); return; }
+    var card = e.target.closest(".scroll"); if(!card) return;
+    var id = card.getAttribute("data-id"); if(!id) return;
+    inScripture[id] = !inScripture[id];
+    render();
+  });
+  // god carousel: side card -> roll to center; center card / its button -> filter (toggle); pencil -> edit
+  document.getElementById("gods").addEventListener("click", function(e){
+    if(gDragMoved){ gDragMoved=false; return; }        // a drag, not a tap
+    var ge = e.target.closest(".gedit");
+    if(ge){ openGodEditor(ge.getAttribute("data-gedit")); return; }
+    var c = e.target.closest(".godcard"); if(!c) return;
+    var idx = Array.prototype.indexOf.call(gCards(), c);
+    var onBtn = !!e.target.closest(".gbtn");
+    if(idx===gIndex || onBtn){ setGod(c.getAttribute("data-god")); }
+    else { goGod(idx); }
+  });
+  // arrows
+  var _gp=document.getElementById("gPrev"), _gn=document.getElementById("gNext");
+  if(_gp) _gp.addEventListener("click", function(){ goGod(gIndex-1); });
+  if(_gn) _gn.addEventListener("click", function(){ goGod(gIndex+1); });
+  // dots
+  var _dc=document.getElementById("cardots");
+  if(_dc) _dc.addEventListener("click", function(e){
+    var d=e.target.closest(".dot"); if(!d) return; goGod(parseInt(d.getAttribute("data-i"),10));
+  });
+  // keyboard (when not typing in a field)
+  window.addEventListener("keydown", function(e){
+    var t=e.target; if(t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+    if(e.key==="ArrowLeft"){ goGod(gIndex-1); }
+    else if(e.key==="ArrowRight"){ goGod(gIndex+1); }
+  });
+  // drag / swipe (mouse + touch) with live rolling + snap
+  (function(){
+    var host=document.getElementById("gods"); if(!host) return;
+    var startX=0, base=0, step=1, dragging=false;
+    function px(e){ return e.touches&&e.touches[0]?e.touches[0].clientX:(e.changedTouches&&e.changedTouches[0]?e.changedTouches[0].clientX:e.clientX); }
+    function down(e){
+      var cards=gCards(); if(!cards.length) return;
+      dragging=true; gDragMoved=false;
+      startX=px(e); base=gIndex; step=(cards[0].offsetWidth||320)*0.6;
+      host.classList.add("dragging");
+    }
+    function move(e){
+      if(!dragging) return;
+      var dx=px(e)-startX;
+      if(Math.abs(dx)>4) gDragMoved=true;
+      var n=gCards().length, pos=base - dx/step;
+      pos=Math.max(-0.4, Math.min(n-0.6, pos));
+      positionCards(pos);
+      if(e.cancelable && Math.abs(dx)>6) e.preventDefault();
+    }
+    function up(e){
+      if(!dragging) return; dragging=false; host.classList.remove("dragging");
+      var dx=px(e)-startX, n=gCards().length;
+      gIndex=Math.max(0, Math.min(n-1, Math.round(base - dx/step)));
+      layoutGods();
+    }
+    host.addEventListener("mousedown", down);
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    host.addEventListener("touchstart", down, {passive:true});
+    host.addEventListener("touchmove", move, {passive:false});
+    host.addEventListener("touchend", up);
+    window.addEventListener("resize", function(){ layoutGods(); });
+  })();
+  // ---- filter enums ----
+  function bindSel(id, set){
+    var el=document.getElementById(id);
+    el.addEventListener("change", function(){ set(el.value); render(); });
+  }
+  bindSel("fTier",  function(v){fTier=v;});
+  bindSel("fGod",   function(v){fGod=v; var i=godNames().indexOf(v); if(i>=0) gIndex=i; renderGods();});
+  bindSel("fStat",  function(v){fStat=v;});
+  bindSel("fPol",   function(v){fPol=v;});
+  bindSel("fTrait", function(v){fTrait=v;});
+  bindSel("fKw",    function(v){fKw=v;});
+  bindSel("fShow",  function(v){fShow=v;});
+  // populate God enum (Neutral-first, then gods present in data) — re-callable after edits
+  function refreshGodEnum(){
+    var sel=document.getElementById("fGod"); if(!sel) return;
+    var cur=sel.value;
+    sel.innerHTML='<option value="all">All Gods</option>';
+    var add=function(val,txt){ var o=document.createElement("option"); o.value=val; o.textContent=txt; sel.appendChild(o); };
+    add("Neutral","Neutral");
+    var gods={}; VERSES.forEach(function(v){ if(v.god) gods[v.god]=1; });
+    Object.keys(GODS).forEach(function(g){ gods[g]=1; });
+    Object.keys(gods).forEach(function(g){ add(g, g.replace(/^The /,"")); });
+    if(cur) sel.value=cur;
+  }
+  // populate Keyword enum from data (alphabetical) — re-callable
+  function refreshKwEnum(){
+    var sel=document.getElementById("fKw"); if(!sel) return;
+    var cur=sel.value;
+    var seen={}; VERSES.forEach(function(v){ (v.keywords||[]).forEach(function(k){seen[k]=1;}); });
+    var kws=Object.keys(seen).sort();
+    sel.innerHTML='<option value="all">All Keywords</option>';
+    kws.forEach(function(k){ var o=document.createElement("option"); o.value=k; o.textContent=k; sel.appendChild(o); });
+    if(cur) sel.value=cur;
+  }
+  // populate Moral Trait enum from data (Neutral-first, then sins/virtues) — re-callable
+  function refreshTraitEnum(){
+    var sel=document.getElementById("fTrait"); if(!sel) return;
+    var cur=sel.value;
+    var seen={}; VERSES.forEach(function(v){ traitOf(v).forEach(function(t){seen[t]=1;}); });
+    var order=["Neutral"].concat(SINS).concat(VIRTUES);
+    var traits=Object.keys(seen).sort(function(a,b){
+      var ia=order.indexOf(a), ib=order.indexOf(b);
+      return (ia<0?99:ia)-(ib<0?99:ib) || a.localeCompare(b);
+    });
+    sel.innerHTML='<option value="all">All Traits</option>';
+    traits.forEach(function(t){ var o=document.createElement("option"); o.value=t; o.textContent=t; sel.appendChild(o); });
+    if(cur) sel.value=cur;
+  }
+  function refreshEnums(){ refreshGodEnum(); refreshKwEnum(); refreshTraitEnum(); }
+  refreshEnums();
+  document.getElementById("q").addEventListener("input", function(){ fQuery=this.value; render(); });
+  document.getElementById("sort").addEventListener("change", function(){ fSort=this.value; render(); });
+  document.getElementById("all").addEventListener("click", function(){
+    VERSES.forEach(function(v){ inScripture[v.id]=true; }); render();
+  });
+  document.getElementById("clear").addEventListener("click", function(){
+    VERSES.forEach(function(v){ inScripture[v.id]=false; }); render();
+  });
+
+  // ---- editor wiring ----
+  qs("newVerse").addEventListener("click", function(){ openVerseEditor(null); });
+  qs("fabNew").addEventListener("click", function(){ openVerseEditor(null); });
+  qs("newGod").addEventListener("click", function(){ openGodEditor(null); });
+  qs("expJs").addEventListener("click", exportVersesJs);
+  qs("expJson").addEventListener("click", exportVersesJson);
+  qs("expGods").addEventListener("click", exportGodsJson);
+  qs("resetOv").addEventListener("click", resetOverrides);
+  qs("ghSync").addEventListener("click", ghOpenModal);
+  qs("ghPublish").addEventListener("click", ghPublish);
+  qs("ghSaveBtn").addEventListener("click", ghSaveCfg);
+  qs("ghLoadBtn").addEventListener("click", function(){ ghLoad(false); });
+  qs("ghPubBtn").addEventListener("click", ghPublish);
+  qs("ghClose").addEventListener("click", function(){ closeModal("smodal"); });
+  qs("smodal").addEventListener("click", function(e){ if(e.target===this) closeModal("smodal"); });
+  // verse modal
+  qs("mTier").addEventListener("change", function(){ syncTierUI(); });
+  qs("mGod").addEventListener("change", godLockNote);
+  qs("addEff").addEventListener("click", function(){ addEffRow("ATK", 1); });
+  qs("mLockToggle").addEventListener("click", function(){
+    var on = qs("mGodLocked").value!=="true";
+    qs("mGodLocked").value = on?"true":"false";
+    this.classList.toggle("on", on);
+  });
+  qs("mSave").addEventListener("click", saveVerse);
+  qs("mDelete").addEventListener("click", deleteVerse);
+  qs("mCancel").addEventListener("click", function(){ closeModal("modal"); });
+  qs("modal").addEventListener("click", function(e){ if(e.target===this) closeModal("modal"); });
+  // god modal
+  qs("gAccent").addEventListener("input", function(){ qs("gAccentPrev").value=this.value; qs("gAccentPrev").style.color=this.value; });
+  qs("gSave").addEventListener("click", saveGod);
+  qs("gDelete").addEventListener("click", deleteGod);
+  qs("gCancel").addEventListener("click", function(){ closeModal("gmodal"); });
+  qs("gmodal").addEventListener("click", function(e){ if(e.target===this) closeModal("gmodal"); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape"){ closeModal("modal"); closeModal("gmodal"); closeModal("smodal"); } });
+  updateOvNote();
+
+  if(!VERSES.length){
+    var _c=ghCfg();
+    document.getElementById("grid").innerHTML = ghReady(_c)
+      ? '<div class="empty">Loading from GitHub&hellip;</div>'
+      : '<div class="empty">No data loaded. Open \u2601 Sync to connect your private GitHub repo, or keep verses.js beside this file.</div>';
+  } else {
+    renderGods();
+    render();
+  }
+  // Auto-refresh from GitHub when configured, so PC + phone converge on the latest verses.json.
+  (function(){ var c=ghCfg(); if(ghReady(c)) ghLoad(true); })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dungeon Rivals — the Verse System (simple version)</title>
+<style>
+  :root{
+    --bg:#0e1116; --card:#161b22; --line:#30363d; --ink:#e6edf3; --soft:#8b949e;
+    --accent:#58a6ff; --good:#3fb950; --wait:#d29922; --todo:#f85149;
+    --b:#ff8a3d; --c:#2ea6c9;
+    --shadow:0 8px 24px #0007;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--ink);
+    font:17px/1.6 "Segoe UI",system-ui,-apple-system,sans-serif;}
+  .wrap{max-width:1000px;margin:0 auto;padding:26px 20px 70px;}
+  header{text-align:center;margin-bottom:8px;}
+  h1{font-size:30px;margin:0 0 8px;}
+  .sub{color:var(--soft);font-size:19px;margin:0 auto;}
+  .modebar{display:flex;justify-content:center;gap:10px;margin:20px 0 28px;}
+  .modebar a{text-decoration:none;font-size:14px;padding:8px 15px;border-radius:999px;
+    border:1px solid var(--line);color:var(--soft);background:var(--card);box-shadow:var(--shadow);}
+  .modebar a.on{background:var(--ink);color:#0e1116;border-color:var(--ink);font-weight:700;}
+  .modebar a:hover{border-color:var(--accent);}
+
+  .step{display:flex;gap:18px;align-items:center;background:var(--card);
+    border:1px solid var(--line);border-radius:18px;padding:18px 22px;margin:14px 0;
+    box-shadow:var(--shadow);}
+  .emoji{font-size:44px;line-height:1;flex:0 0 54px;text-align:center;}
+  .step h2{margin:0 0 4px;font-size:22px;}
+  .step p{margin:0 0 6px;color:#c9d1d9;}
+  .step p:last-child{margin-bottom:0;}
+  .aka{display:inline-block;margin-top:8px;font-size:13px;color:var(--soft);
+    background:#0e1116;border:1px solid var(--line);border-radius:8px;padding:2px 9px;}
+  .good-bad{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;}
+  .pill{font-size:13px;border-radius:8px;padding:3px 10px;border:1px solid var(--line);}
+  .pill.up{color:#7ee787;background:#0f2417;border-color:#1c5b32;}
+  .pill.down{color:#ffa198;background:#2a1615;border-color:#6e2a26;}
+
+  .arrow{text-align:center;color:#4b5563;font-size:22px;margin:-4px 0;}
+
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:14px 0;}
+  .mini{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:18px 20px;box-shadow:var(--shadow);}
+  .mini .emoji{font-size:36px;text-align:left;}
+  .mini h3{margin:8px 0 4px;font-size:20px;}
+  .mini p{margin:0;color:#c9d1d9;}
+  .mini .aka{margin-top:10px;}
+  .tagA{border-top:5px solid var(--b);}
+  .tagB{border-top:5px solid var(--c);}
+
+  .sec-title{margin:34px 0 10px;font-size:14px;letter-spacing:.09em;
+    text-transform:uppercase;color:var(--soft);text-align:center;}
+
+  .status{background:var(--card);border:1px solid var(--line);border-radius:18px;
+    padding:6px 8px;box-shadow:var(--shadow);}
+  .row{display:flex;gap:14px;align-items:flex-start;padding:13px 14px;}
+  .row + .row{border-top:1px solid var(--line);}
+  .dot{flex:0 0 13px;width:13px;height:13px;border-radius:50%;margin-top:7px;}
+  .dot.good{background:var(--good);} .dot.wait{background:var(--wait);} .dot.todo{background:var(--todo);}
+  .row b{display:block;font-size:17px;}
+  .row span{color:var(--soft);font-size:15px;}
+  .legend{display:flex;gap:22px;justify-content:center;margin:0 0 14px;font-size:13px;
+    color:var(--soft);flex-wrap:wrap;}
+  .legend i{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px;}
+
+  .analogy{margin:30px 0 0;background:#12233a;border:1px solid #21456e;border-radius:18px;
+    padding:18px 22px;color:#cfe4ff;font-size:18px;}
+  .analogy b{color:#fff;}
+  footer{text-align:center;color:var(--soft);font-size:13px;margin-top:32px;}
+  footer a{color:var(--accent);}
+  @media (max-width:700px){.two{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🎴 Dungeon Rivals — the Verse System</h1>
+    <p class="sub">The whole idea: <b>players collect <em>Verses</em> that reshape their character — for better <i>and</i> worse.</b></p>
+  </header>
+
+  <div class="modebar">
+    <a class="on" href="simple.html">🙂 Simple view</a>
+    <a href="moderate.html">📖 Moderate</a>
+    <a href="outline.html">🛠️ Technical view</a>
+    <a href="scrolls.html">🧿 Scrolls</a>
+  </div>
+
+  <div class="step">
+    <div class="emoji">🃏</div>
+    <div>
+      <h2>1. A <em>Verse</em> is a power-up with a catch</h2>
+      <p>Every Verse gives you something good <b>and</b> something bad. The bigger the upside, the bigger the trade-off.</p>
+      <div class="good-bad">
+        <span class="pill up">+2 Attack</span><span class="pill down">−2 Speed</span>
+        <span class="pill up">Immune to fire</span><span class="pill down">…but leaves a fire trail</span>
+      </div>
+      <p style="margin-top:8px">Verses come in four grades — <b>Standard</b>, <b>Doctrine</b>, <b>Sacred</b> and <b>Divine</b>. Standard ones are plain, cheap and flexible; each rarer grade is more powerful, weirder and more flavorful — and eats far more of your power budget.</p>
+      <span class="aka">think: a power-up card that costs you a little something</span>
+    </div>
+  </div>
+
+  <div class="arrow">▼</div>
+
+  <div class="step">
+    <div class="emoji">📖</div>
+    <div>
+      <h2>2. A <em>Scripture</em> is the set of Verses you bring to battle</h2>
+      <p>Your <b>Character picks your God</b> — that sets your theme, a bit like your team color. Then you build your Scripture under three simple rules:</p>
+      <div class="good-bad">
+        <span class="pill up">at least 30 Verses</span>
+        <span class="pill up">a power budget of 50 or less</span>
+        <span class="pill up">no duplicates (singleton)</span>
+      </div>
+      <p style="margin-top:8px">That’s it — the power budget is the <b>only</b> limit on how many powerful Verses you pack. Want a Divine bomb? It’ll eat most of your 50, so the rest of your deck stays plain. That trade-off is the whole game.</p>
+      <span class="aka">think: your personal deck, themed around your God</span>
+    </div>
+  </div>
+
+  <p class="sec-title">Using your Verses</p>
+
+  <div class="two">
+    <div class="mini tagA">
+      <div class="emoji">🛠️</div>
+      <h3>Before the match</h3>
+      <p>You build your Scripture — your deck of Verses — around your God’s theme.</p>
+      <span class="aka">think: packing your bag before a trip</span>
+    </div>
+    <div class="mini tagB">
+      <div class="emoji">⬆️</div>
+      <h3>During the match</h3>
+      <p>Every time you <b>level up</b>, the game shows you <b>3 Verses</b> from your Scripture. You keep <b>1</b> and toss <b>2</b>. Tossed ones are usually gone for good.</p>
+      <span class="aka">think: level up, pick a reward</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="emoji">✨</div>
+    <div>
+      <h2>…and special Verses can bend those rules</h2>
+      <p>Some Verses and Gods change the numbers and words: keep more than one, get tossed Verses back, hold one for next time, or upgrade a slot into a stronger random Verse. That “rules can rewrite the rules” twist is what makes each God feel different.</p>
+      <span class="aka">think: the wild cards that break the normal rules</span>
+    </div>
+  </div>
+
+  <div class="arrow">▼</div>
+
+  <div class="step">
+    <div class="emoji">⚙️</div>
+    <div>
+      <h2>3. One calculator adds it all up</h2>
+      <p>Your Verses <b>and</b> your God’s rules all feed the same calculator that decides your final stats. One place to add things up keeps the whole game fair.</p>
+      <span class="aka">think: the game’s scoreboard math</span>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="emoji">🦸🦹</div>
+    <div>
+      <h2>4. Heroes and Villains level up differently</h2>
+      <p>Both sides gain levels and Verses — but they get there their own way:</p>
+      <div class="good-bad">
+        <span class="pill up">🦸 Heroes earn <b>Gold</b> (keeping the peace &amp; raiding) and <b>buy</b> their levels</span>
+        <span class="pill up">🦹 Villains earn <b>XP</b> (building dungeons &amp; raiding) and <b>gain</b> their levels</span>
+      </div>
+      <span class="aka">think: same ladder, two flavors</span>
+    </div>
+  </div>
+
+  <p class="sec-title">Where we are today</p>
+  <div class="legend">
+    <span><i style="background:var(--good)"></i>Works</span>
+    <span><i style="background:var(--wait)"></i>Almost</span>
+    <span><i style="background:var(--todo)"></i>Not yet</span>
+  </div>
+  <div class="status">
+    <div class="row"><span class="dot good"></span><div><b>The calculator works</b><span>The math that adds up every Verse is built and tested.</span></div></div>
+    <div class="row"><span class="dot good"></span><div><b>Buying Verses mid-match works</b><span>Spending Gold to grab a Verse during a match is fully done and proven.</span></div></div>
+    <div class="row"><span class="dot wait"></span><div><b>The pre-match picks don’t switch on yet</b><span>You can build and preview a loadout, but it doesn’t actually take effect once the match starts. Small fix.</span></div></div>
+    <div class="row"><span class="dot todo"></span><div><b>No real Verses or Gods made yet</b><span>The machine is ready, but the first ~100 Verses and the launch Gods (2 villains + 2 heroes) aren’t authored — everything uses placeholders.</span></div></div>
+    <div class="row"><span class="dot todo"></span><div><b>The level-up draw &amp; “rule-bending” system isn’t built</b><span>The keep-1-of-3 draw, the wild-card keywords, and God rules are designed but not coded — this is the real heart of the game still to come.</span></div></div>
+  </div>
+
+  <div class="analogy">
+    🧁 <b>In one line:</b> it’s a card game living inside a video game. Build a <em>Scripture</em> around your God, then each time you level up you pick <em>Verses</em> that make you stronger but come with a catch — and the rarest ones rewrite the rules. The engine works; the <b>actual Verses</b> and the <b>level-up draw</b> are the big pieces still to build.
+  </div>
+
+  <footer>Simple view · pair with the <a href="outline.html">technical view</a> for the engineering detail.</footer>
+</div>
+</body>
+</html>

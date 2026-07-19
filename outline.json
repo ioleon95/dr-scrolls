@@ -1,0 +1,241 @@
+{
+  "title": "DungeonRivals — Verse System",
+  "scope": "Source/DungeonRivals (Verse / Scripture / Draft / Indulgence + Modifier-Framework substrate)",
+  "slug": "dr-verse-system",
+  "generatedAt": "2026-07-13T21:20:00-07:00",
+  "viewModes": ["feature"],
+  "defaultView": "feature",
+  "summary": [
+    "The Verse System is DungeonRivals' data-driven deckbuilding + progression core (MVP §11–12). A Verse's behavior is expressed ONLY as Modifier-Framework modifiers — no bespoke per-Verse code.",
+    "Verses (atomic modifier units) compose into Scriptures (50-Power, ≥30-Verse decks). Players acquire Verses two ways: a pre-match draft (draw-3-pick-1 ×3) and an in-match paid market (Indulgence).",
+    "Every effect routes through ONE apply path: UDR_StatComponent::AddModifier / GetFinalStatValue (ADR-0013/0028). The Verse ModuleType enum IS the closed ADR-0028 whitelist.",
+    "Market Indulgence (ADR-0034) is the only fully working end-to-end path: spend Gold → roll 3 → pick 1 → permanent for the match, server-authoritative, headless-proven 6/6.",
+    "GAPS (red boxes): G1 no authored content (~100 Verses + 2 God Scriptures do not exist); G2 the pre-match draft is drafted, stored, and logged but NEVER applied in-match; G3 no server live-Scripture resolver; G5 no Villain XP level-up draw. (G4 GodSpecific audience is noted on the Indulgence box.)"
+  ],
+  "spec": {
+    "source": "Docs/MVP_Definition_2026-05-18.md §9–§14 + ADR-0027 (Scripture rules) / ADR-0028 (module whitelist) / ADR-0034 (market-indulgence)",
+    "overallMatch": "partial",
+    "notes": "All mechanisms are implemented and the Modifier-Framework substrate + Market Indulgence are proven. The system is NOT yet playable-complete: no authored Verse/Scripture content exists, the pre-match draft loadout is never applied to the pawn, the live-Scripture resolver is unbuilt, and the Villain level-up draw (§10) has no consumer."
+  },
+  "categories": [
+    {
+      "id": "cat-mf",
+      "label": "Modifier Framework",
+      "intent": "The foundational substrate (ADR-0013). Every gameplay number is resolved through one server-authoritative read path so Verses, gear, and skills all compose the same way — no parallel modifier systems.",
+      "plain": "",
+      "spec": "matches",
+      "specNote": "MF Slice 1 + C8 behavior surface implemented and gate-tested."
+    },
+    {
+      "id": "cat-data",
+      "label": "Verse & Scripture Data",
+      "intent": "The authored nouns. A Verse is a pure data asset whose payload is a list of modifiers; a Scripture is an ordered Verse deck with hard editor validation of the four build rules.",
+      "plain": "",
+      "spec": "partial",
+      "specNote": "Asset classes + validation exist; the actual content that would instantiate them does not (G1)."
+    },
+    {
+      "id": "cat-draft",
+      "label": "Draft & Progression Draws",
+      "intent": "How players ACQUIRE Verses outside the paid market: the pre-match Scripture draft (build a loadout before the match) and the intended in-match Villain XP level-up draw.",
+      "plain": "",
+      "spec": "partial",
+      "specNote": "Pre-match draft flow runs end-to-end in UI but its result is inert (G2). Villain level-up draw is unbuilt (G5)."
+    },
+    {
+      "id": "cat-indulgence",
+      "label": "Market Indulgence",
+      "intent": "The in-match SPEND lane of the Phase-3 economy (ADR-0034): pay Gold to draw and permanently acquire Verse power, capped and repeatable. The system's only fully wired acquisition path.",
+      "plain": "",
+      "spec": "matches",
+      "specNote": "Server-authoritative, data-driven, headless-proven (DR_MarketIndulgenceHarness 6/6). One follow-up: GodSpecific audience + live-Scripture source."
+    },
+    {
+      "id": "cat-integration",
+      "label": "Controller & Match Integration",
+      "intent": "Where Verse state lives and survives: the persistent player controller (hosts Indulgence, survives respawn) and the GameInstance (carries the drafted loadout across the level load).",
+      "plain": "",
+      "spec": "partial",
+      "specNote": "Controller integration is solid; the GameInstance stores a drafted loadout that nothing consumes (G2)."
+    }
+  ],
+  "nodes": [
+    {
+      "id": "n-statcomp",
+      "label": "UDR_StatComponent",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_StatComponent.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Modifier Framework",
+      "plain": "The single, server-authoritative read/apply path for every stat in the game. GetFinalStatValue(Tag, Base, Ctx) resolves a base value through all active modifiers; AddModifier(FDR_StatModifier) is the ONLY way effects enter. The modifier source list is server-only and never replicated — clients see derived values via a FastArray. Every Verse ultimately becomes AddModifier calls here.",
+      "spec": "matches",
+      "specNote": "MVP §13 single read path GetFinalStatValue implemented; source list server-only per contract C4."
+    },
+    {
+      "id": "n-statmod",
+      "label": "FDR_StatModifier",
+      "kind": "struct",
+      "file": "Source/DungeonRivals/Public/DR_StatTypes.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Modifier Framework",
+      "plain": "The universal modifier struct: a tag, an operation (Additive / MultiplyAdditive / MultiplyFinal / Override), a value, a GUID identity, and a duration. Every consumer — Verses, gear, skills — uses this one struct (contract C2). No bespoke modifier subclasses exist. A Verse's entire behavior is a TArray of these.",
+      "spec": "matches",
+      "specNote": "Contract C2: one struct, GUID identity, fixed op enum."
+    },
+    {
+      "id": "n-verse",
+      "label": "UDR_VerseDataAsset",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_VerseDataAsset.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Verse & Scripture Data",
+      "plain": "The atomic Verse: a pure data asset with NO runtime logic. Carries DisplayName/Description, a Tier (Low/Mid/High — authored, not derived, ADR-0027), PowerCost, ModuleType (the closed ADR-0028 whitelist of 11 kinds), Audience (Generic/Hero/Villain/God), and its Modifiers payload. Behavior = the modifiers, applied via StatComponent. This is the noun the whole system is named after.",
+      "spec": "matches",
+      "specNote": "MVP §12 data-driven / modifier-based / systemic; ModuleType enum is the ADR-0028 whitelist."
+    },
+    {
+      "id": "n-scripture",
+      "label": "UDR_ScriptureDataAsset",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_ScriptureDataAsset.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Verse & Scripture Data",
+      "plain": "A Scripture: an ordered set of Verses that is both a player's 'modifier deck' and the match draw pool. Pure data, but its IsDataValid enforces FOUR hard editor rules that block save (ADR-0027): total Power must equal exactly 50, at least 30 Verses, no duplicates, at most 1 High-tier Verse — plus a null-slot guard. Each violation is reported independently.",
+      "spec": "matches",
+      "specNote": "MVP §11: max 50 Power, min 30 Verses, no duplicates — all enforced as hard validation."
+    },
+    {
+      "id": "n-content",
+      "label": "Authored Verse/Scripture content (MISSING — G1)",
+      "kind": "group",
+      "group": "Verse & Scripture Data",
+      "plain": "GAP G1. The MVP calls for ~100 Verses (Low ~50 / Mid ~35 / High ~15) and 2 God Scriptures (Drunn, Tidelus). Content/ currently contains ZERO Verse/Scripture/Indulgence assets. Until this exists, every flow runs on synthesized dev-fallback pools — the system cannot be balanced or truly playtested.",
+      "spec": "missing",
+      "specNote": "MVP §2 target ~100 Verses + 2 Gods. No assets found under Content/."
+    },
+    {
+      "id": "n-draftctrl",
+      "label": "UDR_ScriptureDraftController",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_ScriptureDraftController.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Draft & Progression Draws",
+      "plain": "The pre-match draft state machine — pure logic, no UI. Seeds a pool with up to 5 Verses/tier from a God Scripture, then runs 3 rounds of draw-3-pick-1 (picked Verse leaves the pool, the rest return). If no content exists it synthesizes a dev-fallback pool so the flow always demos. SelectedVerses is the resulting loadout.",
+      "spec": "matches",
+      "specNote": "Implements the draw-3-pick-1 loop; presentation-agnostic and reusable."
+    },
+    {
+      "id": "n-draftui",
+      "label": "UUMG_ScriptureDraft",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/UMG_ScriptureDraft.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Draft & Progression Draws",
+      "plain": "The pre-match draft UI. Drives the draft controller, shows Drunn's pool, and lets the player pick one Verse per round. Builds its own fallback UI in C++ so it works with no authored UMG. On completion it commits the picks to the GameInstance — but see G2: nothing downstream ever applies them.",
+      "spec": "partial",
+      "specNote": "UI runs end-to-end; its committed loadout is never applied in-match (G2)."
+    },
+    {
+      "id": "n-draftapply",
+      "label": "Pre-match draft applier (MISSING — G2)",
+      "kind": "group",
+      "group": "Draft & Progression Draws",
+      "plain": "GAP G2 — the single most impactful gap. The draft picks land in GameInstance.DraftedVerses and are logged, but NO consumer reads GetDraftedVerses() to push their modifiers onto the pawn's StatComponent at match start. So the pre-match draft currently grants zero gameplay power. The fix is small: reuse Indulgence's ApplyVerseModifiers seam on possession.",
+      "spec": "missing",
+      "specNote": "No consumer of GetDraftedVerses() applies modifiers; the shared ApplyVerseModifiers seam already exists to reuse."
+    },
+    {
+      "id": "n-villaindraw",
+      "label": "Villain XP level-up draw (MISSING — G5)",
+      "kind": "group",
+      "group": "Draft & Progression Draws",
+      "plain": "GAP G5. MVP §10 says that when a Villain levels via XP (digging / Relics / structure destruction), they draw 3 Verses, pick 1, applied permanently, chosen Verse removed from pool. Only the Hero paid Indulgence and the pre-match draft exist — there is no XP-triggered in-match draw path for Villains.",
+      "spec": "missing",
+      "specNote": "MVP §10 Villain level-up draw has no implementing system."
+    },
+    {
+      "id": "n-indulge",
+      "label": "UDR_IndulgenceComponent",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_IndulgenceComponent.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Market Indulgence",
+      "plain": "The in-match paid acquisition state machine (ADR-0034), living on the player CONTROLLER so acquisitions survive Hero respawn. Flow: spend Gold to open a draw → server rolls CandidateCount candidates from the audience-filtered pool → player picks 1 → its modifiers apply permanently (Duration=0) and re-apply on every possession. Server-authoritative: clients propose, the server re-derives cost and validates the pick. NOTE: GodSpecific audience is excluded here (G4 — no god-identity seam yet).",
+      "spec": "matches",
+      "specNote": "ADR-0034 fully implemented + proven; GodSpecific audience + live source are follow-ups."
+    },
+    {
+      "id": "n-indulgesettings",
+      "label": "UDR_IndulgenceSettings",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_IndulgenceSettings.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Market Indulgence",
+      "plain": "Data-driven tuning for the market: the LevelCosts[] cost curve (NO cost constant in C++ — designers own the numbers), MaxIndulgenceLevel (10), CandidateCount (3), bDedupeAgainstOwned, and optional per-tier TierWeights. GetCostForNextLevel is a pure lookup returning INDEX_NONE at cap. Soft (warning-only) validation, per the ADR-0027 hard/soft split.",
+      "spec": "matches",
+      "specNote": "Cost is authored data, not a formula; cap + roll config all data-driven."
+    },
+    {
+      "id": "n-gold",
+      "label": "UDR_GoldLedgerComponent",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_GoldLedgerComponent.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Market Indulgence",
+      "plain": "The per-player Gold source-of-truth (ADR-0035), consumed UNCHANGED by Indulgence. Its static TrySpendGold(controller, cost) is an atomic check-and-debit — so a client cannot draw while broke via timing. Indulgence charges here at draw-open.",
+      "spec": "matches",
+      "specNote": "Reused as-is; the SPEND seam for the market."
+    },
+    {
+      "id": "n-resolver",
+      "label": "Live-Scripture resolver (MISSING — G3)",
+      "kind": "group",
+      "group": "Market Indulgence",
+      "plain": "GAP G3. Indulgence's MatchScripture is never wired from the running match's config, so EnsureSourcePool falls back to a dev pool (or a harness-seeded pool). Production needs a server-side resolver that sets MatchScripture (the God/match deck) so the paid market rolls from real content instead of placeholders.",
+      "spec": "missing",
+      "specNote": "ADR-0034 §2.1 TD follow-up: no component wires MatchScripture from live match config."
+    },
+    {
+      "id": "n-gamepc",
+      "label": "ADR_GamePC",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_GamePC.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Controller & Match Integration",
+      "plain": "The persistent player controller (this project has NO PlayerState). Hosts the Indulgence subobject and the GoldLedger, and exposes the two Server_RequestIndulgenceDraw / Server_RequestIndulgencePick RPCs that forward to the component — the client-proposes / server-grants boundary. Because it outlives the pawn, per-match Verse ownership is durable across death.",
+      "spec": "matches",
+      "specNote": "Controller-hosted so acquisitions survive respawn (ADR-0034 §0034.1)."
+    },
+    {
+      "id": "n-gameinstance",
+      "label": "UDR_GameInstance",
+      "kind": "class",
+      "file": "Source/DungeonRivals/Public/DR_GameInstance.h",
+      "dir": "Source/DungeonRivals/Public",
+      "group": "Controller & Match Integration",
+      "plain": "Carries the pre-match drafted loadout across the level load: SetDraftedVerses / GetDraftedVerses / ClearDraftedVerses, plus OpenScriptureDraft to show the draft widget. It faithfully STORES and logs the loadout — but nothing reads it back to apply it (the visible half of G2).",
+      "spec": "partial",
+      "specNote": "Storage works; stored loadout is never consumed to apply modifiers (G2)."
+    }
+  ],
+  "edges": [
+    { "from": "n-scripture", "to": "n-verse", "label": "contains", "kind": "data", "detail": "A Scripture is an ordered set of Verse assets and also the match draw pool; uniqueness + Power=50 are validated against these Verses." },
+    { "from": "n-verse", "to": "n-statmod", "label": "payload", "kind": "data", "detail": "Each Verse carries a TArray<FDR_StatModifier> — its whole behavior is these modifiers, with no bespoke per-Verse code (MVP §12)." },
+    { "from": "n-statcomp", "to": "n-statmod", "label": "evaluates", "kind": "data", "detail": "UDR_StatComponent stores FDR_StatModifiers server-side and resolves them in GetFinalStatValue; AddModifier is the single entry point." },
+    { "from": "n-content", "to": "n-verse", "label": "should author", "kind": "data", "detail": "~100 Verses + 2 God Scriptures should instantiate these asset classes — currently none exist (G1)." },
+    { "from": "n-draftctrl", "to": "n-scripture", "label": "seeds pool", "kind": "data", "detail": "SeedFromScripture pulls up to 5 Verses per tier from the God Scripture into the draw pool." },
+    { "from": "n-draftctrl", "to": "n-verse", "label": "draws / picks", "kind": "data", "detail": "Runs 3 rounds of draw-3-pick-1; SelectedVerses becomes the pre-match loadout." },
+    { "from": "n-draftui", "to": "n-draftctrl", "label": "drives", "kind": "call", "detail": "The UI calls Initialize / GetCurrentDraw / PickVerseByIndex to run the draft state machine each round." },
+    { "from": "n-draftui", "to": "n-gameinstance", "label": "commits", "kind": "data", "detail": "On finish, the UI calls SetDraftedVerses so the picked loadout survives into the match." },
+    { "from": "n-gameinstance", "to": "n-draftapply", "label": "should feed", "kind": "data", "detail": "GetDraftedVerses() holds the loadout, but nothing consumes it — the applier does not exist (G2)." },
+    { "from": "n-draftapply", "to": "n-statcomp", "label": "should apply", "kind": "data", "detail": "A match-start applier should push drafted Verse modifiers onto the pawn's StatComponent via the shared ApplyVerseModifiers seam — not built (G2)." },
+    { "from": "n-villaindraw", "to": "n-verse", "label": "should draw", "kind": "data", "detail": "On Villain XP level-up (MVP §10) the player should draw 3 Verses and keep 1 permanently — no consumer exists (G5)." },
+    { "from": "n-indulge", "to": "n-indulgesettings", "label": "reads tuning", "kind": "data", "detail": "Cost curve, cap, candidate count, dedupe, and tier weights are all read from the settings asset (no C++ constants)." },
+    { "from": "n-indulge", "to": "n-scripture", "label": "source pool", "kind": "data", "detail": "EnsureSourcePool audience-filters MatchScripture.Verses (Generic + the player's Hero/Villain bucket) into the eligible roll pool." },
+    { "from": "n-indulge", "to": "n-verse", "label": "rolls & owns", "kind": "data", "detail": "Rolls CandidateCount distinct candidate Verses; the picked Verse joins OwnedVerses permanently for the match." },
+    { "from": "n-indulge", "to": "n-gold", "label": "debits", "kind": "call", "detail": "TrySpendGold (atomic, ADR-0035) charges the level cost at draw-open; if broke, no draw opens and nothing mutates." },
+    { "from": "n-indulge", "to": "n-statcomp", "label": "applies permanent", "kind": "call", "detail": "ApplyVerseModifiers pushes each owned Verse's modifiers with Duration=0 via AddModifier, re-applied to every respawned pawn." },
+    { "from": "n-resolver", "to": "n-indulge", "label": "should set MatchScripture", "kind": "data", "detail": "A server resolver should wire the live match Scripture into the component; missing, so it falls back to a dev pool (G3)." },
+    { "from": "n-gamepc", "to": "n-indulge", "label": "hosts + RPCs", "kind": "call", "detail": "ADR_GamePC owns the Indulgence subobject and forwards Server_RequestIndulgenceDraw/Pick — client proposes, server grants." }
+  ]
+}
