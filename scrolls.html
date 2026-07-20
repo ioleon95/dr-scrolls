@@ -358,8 +358,8 @@
     <div class="fbtn" id="expJson">⬇ Export verses.json</div>
     <div class="fbtn" id="expGods">⬇ Export gods.json</div>
     <div class="fbtn" id="resetOv" title="Discard local edits and reload the on-disk set">↺ Reset to file</div>
-    <div class="fbtn primary" id="ghPublish" title="Commit verses.json to your GitHub repo (syncs PC + phone)">⬆ Publish</div>
-    <div class="fbtn" id="ghSync" title="Connect a private GitHub repo for phone/PC sync">☁ Sync</div>
+    <div class="fbtn primary" id="nasSaveTop" title="Save your verses to the NAS (syncs PC + phone)">⬆ Save to NAS</div>
+    <div class="fbtn" id="ghSync" title="Sync settings: NAS or GitHub">☁ Sync</div>
     <div class="fspace"></div>
     <span class="note" id="ovNote"></span>
   </div>
@@ -519,10 +519,21 @@
   </footer>
 </div>
 
-<!-- GitHub sync modal -->
+<!-- Sync modal -->
 <div class="modal" id="smodal">
   <div class="sheet">
-    <h2>&#9729; GitHub Sync</h2>
+    <h2>&#9729; Sync</h2>
+    <p class="sub"><b>NAS</b> keeps one copy of your Verses on your always-on NAS. Open this page <i>from the NAS</i> on any device and every edit is shared &mdash; nothing leaves your private network. Leave the address blank when the page is already served by the NAS.</p>
+    <div class="fld"><label>NAS address (blank = this server)</label><input type="text" id="nasBase" placeholder="http://192.168.68.58:8088" spellcheck="false" /></div>
+    <div class="vmsg" id="nasMsg" style="display:none"></div>
+    <div class="acts">
+      <button class="save" id="nasSaveBtn">&#11014; Save to NAS</button>
+      <button class="cancel" id="nasLoadBtn">&#11015; Load from NAS</button>
+      <div class="fspace"></div>
+      <button class="cancel" id="nasClose">Close</button>
+    </div>
+    <hr style="border:none;border-top:1px solid #1b2130;margin:18px 0 12px" />
+    <h2 style="font-size:15px">&#9729; GitHub (optional)</h2>
     <p class="sub">One private repo holds <b>verses.json</b> &mdash; the same file your phone, PC, and the Unreal importer read. Your token is stored only in this browser (this device).</p>
     <div class="fld"><label>Personal access token &mdash; fine-grained, Contents: Read &amp; write</label><input type="text" id="ghToken" placeholder="github_pat_&hellip;" autocomplete="off" spellcheck="false" /></div>
     <div class="row2">
@@ -1183,7 +1194,51 @@
     qs("ghBranch").value=c.branch||"main"; qs("ghPath").value=c.path||"verses.json";
     ghMsg(ghReady(c)?"":"bad", ghReady(c)?("Connected to <b>"+c.owner+"/"+c.repo+"</b>. Load pulls the latest; Publish pushes your edits.")
                                         :"Not configured. Fill these in, Save, then Load.");
+    var nb=nasCfg().base||""; if(qs("nasBase")) qs("nasBase").value=nb;
+    nasMsg(nasBase()?"":"", nasBase()?("NAS: <b>"+(nb||"this server")+"</b>. Load pulls the shared copy; Save pushes your edits."):"");
     openModal("smodal");
+  }
+  // ===== NAS backend: one shared copy of verses.json on the always-on NAS =====
+  var NAS_KEY="dr_nas_cfg_v1";
+  function nasCfg(){ try{ return JSON.parse(localStorage.getItem(NAS_KEY))||{}; }catch(e){ return {}; } }
+  function nasStore(c){ try{ localStorage.setItem(NAS_KEY, JSON.stringify(c)); }catch(e){} }
+  function nasServed(){ return location.protocol==="http:"||location.protocol==="https:"; }
+  function nasBase(){
+    var b=(nasCfg().base||"").trim();
+    if(b) return b.replace(/\/+$/,"");
+    return nasServed() ? location.origin : "";
+  }
+  function nasMsg(kind,html){ var el=qs("nasMsg"); if(!el) return; el.className="vmsg"+(kind?(" "+kind):""); el.style.display=html?"block":"none"; el.innerHTML=html||""; }
+  function nasSaveCfg(){ nasStore({base:((qs("nasBase")&&qs("nasBase").value)||"").trim()}); }
+  function nasLoad(silent){
+    var base=nasBase();
+    if(!base){ if(!silent) nasMsg("bad","Enter your NAS address first (e.g. http://192.168.68.58:8088)."); return Promise.resolve(false); }
+    if(!silent) nasMsg("","Loading from NAS&hellip;");
+    return fetch(base+"/api/verses",{cache:"no-store"}).then(function(r){
+      if(r.status===404) throw new Error("no data on the NAS yet \u2014 open the page where your verses already are and click Save to NAS once");
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return r.json();
+    }).then(function(data){
+      ghApplyData(data);
+      if(!silent) nasMsg("ok","Loaded <b>"+VERSES.length+"</b> verses from the NAS.");
+      return true;
+    }).catch(function(e){ if(!silent) nasMsg("bad","Load failed: "+e.message); else console.warn("NAS auto-load:",e.message); return false; });
+  }
+  function nasSave(){
+    var base=nasBase();
+    if(!base){ nasMsg("bad","Enter your NAS address first, or open this page from the NAS."); openModal("smodal"); return; }
+    nasMsg("","Saving to NAS&hellip;");
+    var body=JSON.stringify({_meta:syncedMeta(), verses:VERSES});
+    fetch(base+"/api/verses",{method:"PUT",headers:{"Content-Type":"application/json"},body:body}).then(function(r){
+      if(!r.ok) return r.text().then(function(t){ throw new Error("HTTP "+r.status+" "+t); });
+      return r.json();
+    }).then(function(j){
+      DATA={_meta:syncedMeta(), verses:VERSES.slice()};
+      OV={upserts:{},deletes:[],godUpserts:{},godDeletes:[]}; saveOverrides(OV);
+      DISK_GODS={}; Object.keys(GODS).forEach(function(k){ DISK_GODS[k]=GODS[k]; });
+      updateOvNote();
+      nasMsg("ok","Saved <b>"+(j.verses||VERSES.length)+"</b> verses to the NAS. Open this NAS address on your phone to see them.");
+    }).catch(function(e){ nasMsg("bad","Save failed: "+e.message); });
   }
   function resetOverrides(){
     if(!confirm("Discard all local edits and reload from disk?")) return;
@@ -1333,7 +1388,10 @@
   qs("expGods").addEventListener("click", exportGodsJson);
   qs("resetOv").addEventListener("click", resetOverrides);
   qs("ghSync").addEventListener("click", ghOpenModal);
-  qs("ghPublish").addEventListener("click", ghPublish);
+  qs("nasSaveTop").addEventListener("click", nasSave);
+  qs("nasSaveBtn").addEventListener("click", function(){ nasSaveCfg(); nasSave(); });
+  qs("nasLoadBtn").addEventListener("click", function(){ nasSaveCfg(); nasLoad(false); });
+  qs("nasClose").addEventListener("click", function(){ closeModal("smodal"); });
   qs("ghSaveBtn").addEventListener("click", ghSaveCfg);
   qs("ghLoadBtn").addEventListener("click", function(){ ghLoad(false); });
   qs("ghPubBtn").addEventListener("click", ghPublish);
@@ -1363,15 +1421,28 @@
 
   if(!VERSES.length){
     var _c=ghCfg();
-    document.getElementById("grid").innerHTML = ghReady(_c)
+    document.getElementById("grid").innerHTML = (nasServed()||nasCfg().base)
+      ? '<div class="empty">Loading from your NAS&hellip;</div>'
+      : ghReady(_c)
       ? '<div class="empty">Loading from GitHub&hellip;</div>'
-      : '<div class="empty">No data loaded. Open \u2601 Sync to connect your private GitHub repo, or keep verses.js beside this file.</div>';
+      : '<div class="empty">No data loaded. Open \u2601 Sync to connect your NAS (or GitHub), or keep verses.js beside this file.</div>';
   } else {
     renderGods();
     render();
   }
-  // Auto-refresh from GitHub when configured, so PC + phone converge on the latest verses.json.
-  (function(){ var c=ghCfg(); if(ghReady(c)) ghLoad(true); })();
+  // Converge PC + phone on one copy: prefer the NAS, fall back to GitHub if configured.
+  (function(){
+    var g=ghCfg();
+    if(nasServed() || nasCfg().base){
+      nasLoad(true).then(function(ok){
+        if(!ok && !VERSES.length){
+          var el=document.getElementById("grid");
+          if(el) el.innerHTML='<div class="empty">Connected to the NAS, but it has no verses yet.<br>On the device that already has your verses, open Scrolls and click <b>\u2601 Sync &rarr; Save to NAS</b> once.</div>';
+        }
+      });
+    }
+    else if(ghReady(g)){ ghLoad(true); }
+  })();
 })();
 </script>
 </body>
