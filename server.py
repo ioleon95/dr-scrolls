@@ -9,20 +9,25 @@ read/write JSON backend so the PC and phone share ONE copy of the Verse data.
   PUT  /api/verses      -> overwrite verses.json (atomic)  [also accepts POST]
   GET  /health          -> "ok"
 
+If AUTH_TOKEN is set, /api/verses (GET + write) requires a matching token via the
+X-Auth-Token header or ?token=... query. Static files and /health stay open.
+
 Stdlib only (runs on a stock python:alpine image, no pip). Data lives in
 DATA_DIR/verses.json so it persists in a Docker volume, independent of the app.
 """
+import hmac
 import json
 import os
 import posixpath
 import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlparse, unquote
+from urllib.parse import urlparse, unquote, parse_qs
 
 APP_DIR = os.environ.get("APP_DIR", os.path.dirname(os.path.abspath(__file__)))
 DATA_DIR = os.environ.get("DATA_DIR", os.path.join(APP_DIR, "data"))
 DATA_FILE = os.path.join(DATA_DIR, "verses.json")
 PORT = int(os.environ.get("PORT", "8088"))
+AUTH_TOKEN = os.environ.get("AUTH_TOKEN", "").strip()
 MAX_BODY = 16 * 1024 * 1024  # 16 MB ceiling on writes
 
 MIME = {
@@ -45,7 +50,15 @@ class Handler(BaseHTTPRequestHandler):
     def _cors(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, PUT, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, X-Auth-Token")
+
+    def _authed(self):
+        if not AUTH_TOKEN:
+            return True
+        got = self.headers.get("X-Auth-Token", "")
+        if not got:
+            got = (parse_qs(urlparse(self.path).query).get("token", [""]) or [""])[0]
+        return hmac.compare_digest(got, AUTH_TOKEN)
 
     def _send(self, code, body=b"", ctype="text/plain; charset=utf-8", extra=None):
         if isinstance(body, str):
@@ -85,6 +98,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/health":
             return self._send(200, "ok")
         if path == "/api/verses":
+            if not self._authed():
+                return self._send(401, '{"error":"unauthorized"}', MIME[".json"])
             if os.path.exists(DATA_FILE):
                 with open(DATA_FILE, "rb") as f:
                     data = f.read()
@@ -102,6 +117,8 @@ class Handler(BaseHTTPRequestHandler):
     do_HEAD = do_GET
 
     def _write_verses(self):
+        if not self._authed():
+            return self._send(401, '{"error":"unauthorized"}', MIME[".json"])
         length = int(self.headers.get("Content-Length", "0") or "0")
         if length <= 0 or length > MAX_BODY:
             return self._send(400, '{"error":"bad length"}', MIME[".json"])
@@ -140,6 +157,7 @@ def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     httpd = ThreadingHTTPServer(("0.0.0.0", PORT), Handler)
     print("[dr-scrolls] serving %s on :%d  (data: %s)" % (APP_DIR, PORT, DATA_FILE))
+    print("[dr-scrolls] api auth: %s" % ("ON (token required)" if AUTH_TOKEN else "OFF (open)"))
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
