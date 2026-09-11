@@ -1046,20 +1046,29 @@
   }
   function collectVerse(){
     var god=qs("mGod").value;
-    return {
-      id:(qs("mId").value.trim() || suggestId()),
-      name:qs("mName").value.trim(),
-      tier:qs("mTier").value,
-      power:parseInt(qs("mPower").value,10)||0,
-      faction:qs("mFaction").value,
-      traits:vTraits.slice(),
-      god:god||"",
-      keywords:vKws.slice(),
-      effects:readEffs(),
-      runtime:readRuntime(),
-      text:qs("mText").value.trim(),
-      flavor:qs("mFlavor").value.trim()
-    };
+    // Start from the verse being edited so fields this editor does not expose
+    // (e.g. "program", "rarity", and anything added to the schema later) survive
+    // the round-trip instead of being silently dropped on save.
+    var out={};
+    if(editingId){
+      var prev=null;
+      for(var i=0;i<VERSES.length;i++){ if(VERSES[i].id===editingId){ prev=VERSES[i]; break; } }
+      if(prev){ for(var k in prev){ if(Object.prototype.hasOwnProperty.call(prev,k)) out[k]=prev[k]; } }
+    }
+    out.id=(qs("mId").value.trim() || suggestId());
+    out.name=qs("mName").value.trim();
+    out.tier=qs("mTier").value;
+    out.power=parseInt(qs("mPower").value,10)||0;
+    out.faction=qs("mFaction").value;
+    out.traits=vTraits.slice();
+    out.god=god||"";
+    out.keywords=vKws.slice();
+    out.effects=readEffs();
+    out.runtime=readRuntime();
+    out.text=qs("mText").value.trim();
+    out.flavor=qs("mFlavor").value.trim();
+    delete out.godLocked; // retired flag; never reintroduce it from older records
+    return out;
   }
   function isSelfBalancing(v){
     if(v.effects.some(function(e){return e.value<0;})) return true;
