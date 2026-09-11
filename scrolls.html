@@ -293,6 +293,14 @@
   .effrow .del{cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--stone);
     color:var(--bad);width:34px;height:34px;font-size:15px;}
   .effrow .del:hover{border-color:var(--no);}
+  .runtime-block{margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:10px;background:#0b0e13;}
+  .runtime-block>label{display:block;color:var(--soft);font-size:12px;font-weight:700;margin-bottom:7px;}
+  .runtime-row{display:grid;grid-template-columns:repeat(5,minmax(90px,1fr)) auto;gap:7px;align-items:center;margin-bottom:7px;}
+  .runtime-row.conditional{grid-template-columns:repeat(7,minmax(82px,1fr)) auto;}
+  .runtime-row input,.runtime-row select{min-width:0;}
+  .runtime-row .del{cursor:pointer;border:1px solid var(--line);border-radius:8px;background:var(--stone);
+    color:var(--bad);width:34px;height:34px;font-size:15px;}
+  @media(max-width:760px){.runtime-row,.runtime-row.conditional{grid-template-columns:1fr 1fr}.runtime-row .del{width:100%}}
   .addeff{cursor:pointer;font-size:12px;color:var(--ember2);border:1px dashed var(--line2);border-radius:8px;
     padding:7px 10px;background:transparent;margin-top:8px;}
   .addeff:hover{border-color:var(--ember);}
@@ -450,13 +458,19 @@
         <button class="addeff" id="addEff" type="button">+ add stat effect</button>
       </div>
 
+      <div class="fld"><label>Executable Runtime Payload <span class="locked-note">schema v1; rules text is never executed</span></label>
+        <div class="runtime-block"><label>Fixed modifiers</label><div id="mRuntimeMods"></div>
+          <button class="addeff" id="addRuntimeMod" type="button">+ add runtime modifier</button></div>
+        <div class="runtime-block"><label>Conditional / counter-scaled modifiers</label><div id="mRuntimeConds"></div>
+          <button class="addeff" id="addRuntimeCond" type="button">+ add conditional modifier</button></div>
+        <div class="runtime-block"><label>Keyword actions</label><div id="mRuntimeKws"></div>
+          <button class="addeff" id="addRuntimeKw" type="button">+ add runtime keyword</button></div>
+      </div>
+
       <div class="fld"><label>Rules Text (keyword rules; carries the scaling cost for Sacred/Divine)</label>
         <textarea id="mText" placeholder='e.g. Devour "3". Gain +1 ATK per Devour Counter; each Counter also lowers your DEF by 1.'></textarea>
       </div>
       <div class="fld"><label>Flavor</label><textarea id="mFlavor" placeholder="One evocative line."></textarea></div>
-
-      <input type="hidden" id="mGodLocked" value="false" />
-      <label class="chip" id="mLockToggle" style="display:inline-block;margin-bottom:6px;">🔒 God-Locked</label>
 
       <div class="vmsg" id="mMsg"></div>
 
@@ -489,6 +503,10 @@
 
       <div class="fld"><label>Favored Moral Traits (allow-list — Gods may mix sins &amp; virtues)</label>
         <div class="chips" id="gTraits"></div>
+      </div>
+
+      <div class="fld"><label>Anchor Trait (the God's defining trait — must be one of the favored traits above)</label>
+        <select id="gAnchor"></select>
       </div>
 
       <div class="fld"><label>Tagline</label><input id="gTagline" type="text" placeholder="One evocative line." /></div>
@@ -584,6 +602,17 @@
   var KEYWORD_VOCAB = ["On","While","Threshold","Sanctify","Reverent","Ascend","Sacrifice","Revive",
     "Martyr","Devour","Surge","Smite","Rebuke","Seal","Desecrate","Synchronize","Lament","Absolve",
     "Zealot","Relic","Ordain","Corrupt","Redeem"];
+  var RUNTIME_SCHEMA_VERSION = 1;
+  var RUNTIME_OPS = ["Additive","MultiplyAdditive","MultiplyFinal","Override"];
+  var RUNTIME_MODES = ["condition","counterScaled"];
+  var RUNTIME_CONDITIONS = ["GospelFull","LevelAtLeast","CounterThreshold"];
+  var RUNTIME_COUNTERS = ["Devour"];
+  var RUNTIME_ACTIONS = ["Sanctify","Reverent","Ascend","Sacrifice","Revive","Martyr","Absolve",
+    "Seal","Zealot","Surge","Smite","Rebuke","Lament","Devour"];
+  var RUNTIME_HOOKS = ["on-match-start","on-draw","on-load","on-pick","on-Sanctify","on-Reverent",
+    "on-Ascend","on-Sacrifice","on-discard","on-gospel-enter","on-gospel-replace","on-level-up",
+    "on-gold-spend","on-kill","on-relic","on-structure-fall","on-raid","on-respawn",
+    "on-phase-switch","on-devour"];
 
   // ---- localStorage overrides: verse upserts/deletes + god upserts/deletes, merged over the on-disk set ----
   function loadOverrides(){
@@ -671,7 +700,7 @@
     var kws = (v.keywords&&v.keywords.length)
       ? '<div class="kws">'+v.keywords.map(function(k){return '<span class="kw">'+k+'</span>';}).join("")+'</div>' : "";
     var godTag = v.god
-      ? '<span class="godtag" title="God'+(v.godLocked?" \u2014 God-Locked":"")+'">'+v.god.replace(/^The /,"")+(v.godLocked?" \uD83D\uDD12":"")+'</span>'
+      ? '<span class="godtag" title="God">'+v.god.replace(/^The /,"")+'</span>'
       : "";
     return ''+
       '<div class="'+cls+'" data-id="'+v.id+'">'+
@@ -895,6 +924,63 @@
     }
     return out;
   }
+  function runtimeSelect(values, current, field){
+    var sel=document.createElement("select"); sel.setAttribute("data-field",field);
+    values.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;if(v===current)o.selected=true;sel.appendChild(o);});
+    return sel;
+  }
+  function runtimeNumber(value, field){
+    var input=document.createElement("input"); input.type="number"; input.step="any";
+    input.value=(value==null?0:value); input.setAttribute("data-field",field); return input;
+  }
+  function runtimeDelete(row){
+    var del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="\u2715";
+    del.addEventListener("click",function(){row.parentNode.removeChild(row);}); return del;
+  }
+  function addRuntimeModifierRow(m){
+    m=m||{}; var row=document.createElement("div"); row.className="runtime-row";
+    row.appendChild(runtimeSelect(STAT_KEYS,m.stat||"ATK","stat"));
+    row.appendChild(runtimeSelect(RUNTIME_OPS,m.op||"Additive","op"));
+    row.appendChild(runtimeNumber(m.value==null?1:m.value,"value"));
+    row.appendChild(document.createElement("span")); row.appendChild(document.createElement("span"));
+    row.appendChild(runtimeDelete(row)); qs("mRuntimeMods").appendChild(row);
+  }
+  function addRuntimeConditionalRow(c){
+    c=c||{}; var row=document.createElement("div"); row.className="runtime-row conditional";
+    row.appendChild(runtimeSelect(RUNTIME_MODES,c.mode||"condition","mode"));
+    row.appendChild(runtimeSelect(STAT_KEYS,c.stat||"ATK","stat"));
+    row.appendChild(runtimeSelect(RUNTIME_OPS,c.op||"Additive","op"));
+    row.appendChild(runtimeNumber(c.value==null?1:c.value,"value"));
+    row.appendChild(runtimeSelect(RUNTIME_CONDITIONS,c.condition||"GospelFull","condition"));
+    row.appendChild(runtimeSelect(RUNTIME_COUNTERS,c.counter||"Devour","counter"));
+    row.appendChild(runtimeNumber(c.mode==="counterScaled"?(c.perCounter==null?1:c.perCounter):(c.intParam||0),
+      c.mode==="counterScaled"?"perCounter":"intParam"));
+    row.appendChild(runtimeDelete(row)); qs("mRuntimeConds").appendChild(row);
+    row.querySelector('[data-field="mode"]').addEventListener("change",function(){
+      var n=row.querySelector('[data-field="perCounter"],[data-field="intParam"]');
+      n.setAttribute("data-field",this.value==="counterScaled"?"perCounter":"intParam");
+    });
+  }
+  function addRuntimeKeywordRow(k){
+    k=k||{}; var row=document.createElement("div"); row.className="runtime-row";
+    row.appendChild(runtimeSelect(RUNTIME_ACTIONS,k.action||"Sanctify","action"));
+    row.appendChild(runtimeSelect(RUNTIME_HOOKS,k.hook||"on-pick","hook"));
+    row.appendChild(runtimeNumber(k.intParam||0,"intParam"));
+    row.appendChild(runtimeNumber(k.floatParam||0,"floatParam"));
+    row.appendChild(document.createElement("span")); row.appendChild(runtimeDelete(row));
+    qs("mRuntimeKws").appendChild(row);
+  }
+  function readRuntimeRows(hostId){
+    return Array.prototype.map.call(qs(hostId).querySelectorAll(".runtime-row"),function(row){
+      var out={}; Array.prototype.forEach.call(row.querySelectorAll("[data-field]"),function(el){
+        var f=el.getAttribute("data-field"); out[f]=el.type==="number"?parseFloat(el.value):el.value;
+      }); return out;
+    });
+  }
+  function readRuntime(){
+    return {modifiers:readRuntimeRows("mRuntimeMods"),
+      conditionalModifiers:readRuntimeRows("mRuntimeConds"),keywords:readRuntimeRows("mRuntimeKws")};
+  }
   function populateGodSelect(sel, current){
     sel.innerHTML='<option value="">\u2014 Neutral (no God) \u2014</option>';
     Object.keys(GODS).forEach(function(name){
@@ -946,10 +1032,13 @@
     buildKwChips(qs("mKws"), vKws);
     qs("mEffs").innerHTML="";
     if(v){ (v.effects||[]).forEach(function(e){ addEffRow(e.stat, e.value); }); }
+    qs("mRuntimeMods").innerHTML=""; qs("mRuntimeConds").innerHTML=""; qs("mRuntimeKws").innerHTML="";
+    var runtime=v&&v.runtime?v.runtime:{modifiers:[],conditionalModifiers:[],keywords:[]};
+    (runtime.modifiers||[]).forEach(addRuntimeModifierRow);
+    (runtime.conditionalModifiers||[]).forEach(addRuntimeConditionalRow);
+    (runtime.keywords||[]).forEach(addRuntimeKeywordRow);
     qs("mText").value = v ? (v.text||"") : "";
     qs("mFlavor").value = v ? (v.flavor||"") : "";
-    qs("mGodLocked").value = (v && v.godLocked) ? "true":"false";
-    qs("mLockToggle").classList.toggle("on", !!(v && v.godLocked));
     qs("mDelete").style.display = v ? "inline-block":"none";
     qs("mMsg").className="vmsg"; qs("mMsg").innerHTML="";
     syncTierUI(); godLockNote();
@@ -965,9 +1054,9 @@
       faction:qs("mFaction").value,
       traits:vTraits.slice(),
       god:god||"",
-      godLocked:(qs("mGodLocked").value==="true") && !!god,
       keywords:vKws.slice(),
       effects:readEffs(),
+      runtime:readRuntime(),
       text:qs("mText").value.trim(),
       flavor:qs("mFlavor").value.trim()
     };
@@ -991,18 +1080,51 @@
     } else if(v.faction!=="Neutral"){
       warns.push("No Moral Trait set but Faction is "+v.faction+" \u2014 expected Neutral.");
     }
+    // Faction invariant: Heroes never carry Pride; Villains never carry Humility.
+    // Mixed virtue/sin trait sets would otherwise slip past the faction check above.
+    if(v.faction==="Heroic" && v.traits.indexOf("Pride")>=0) errs.push("A Heroic Verse cannot carry Pride.");
+    if(v.faction==="Villainous" && v.traits.indexOf("Humility")>=0) errs.push("A Villainous Verse cannot carry Humility.");
     if(v.god && GODS[v.god]){
       var allow=GODS[v.god].traits||[];
       var bad=v.traits.filter(function(t){return allow.indexOf(t)<0;});
       if(bad.length) warns.push("Trait(s) "+bad.join(", ")+" are outside "+v.god.replace(/^The /,"")+"'s favored list.");
     }
-    if(v.godLocked && !v.god) errs.push("God-Locked requires a God.");
     if(!statsAllowed(v.tier)){
       if(v.effects.length) warns.push(v.tier+" Verses are text-first \u2014 prefer rules text over +/- stats.");
       if(!v.text) errs.push(v.tier+" Verses need rules text (their power lives in the text).");
       if(!isSelfBalancing(v)) errs.push(v.tier+" Verses must be self-balancing: carry a scaling downside (a negative effect, or 'cost'/'lose'/'sacrifice' in the text).");
     } else if(!v.effects.length && !v.text){
       warns.push("Standard/Doctrine Verse has no stat effects and no text.");
+    }
+    if(!v.runtime || !Array.isArray(v.runtime.modifiers) ||
+       !Array.isArray(v.runtime.conditionalModifiers) || !Array.isArray(v.runtime.keywords)){
+      errs.push("Runtime schema v1 requires modifiers, conditionalModifiers, and keywords arrays.");
+    } else {
+      v.runtime.modifiers.forEach(function(m,i){
+        if(STAT_KEYS.indexOf(m.stat)<0||RUNTIME_OPS.indexOf(m.op)<0||!Number.isFinite(m.value))
+          errs.push("Runtime modifier #"+(i+1)+" has an unknown stat/op or non-finite value.");
+        if(m.stat==="ATKSPD"&&(m.op!=="MultiplyFinal"||m.value<=0))
+          errs.push("Runtime modifier #"+(i+1)+" ATKSPD must be a positive MultiplyFinal interval factor.");
+      });
+      v.runtime.conditionalModifiers.forEach(function(c,i){
+        if(RUNTIME_MODES.indexOf(c.mode)<0||STAT_KEYS.indexOf(c.stat)<0||RUNTIME_OPS.indexOf(c.op)<0)
+          errs.push("Runtime conditional #"+(i+1)+" has an unknown mode/stat/op.");
+        if(c.stat==="ATKSPD"&&c.mode==="counterScaled")
+          errs.push("Runtime conditional #"+(i+1)+" cannot counter-scale ATKSPD linearly.");
+        if(c.mode==="counterScaled"){
+          if(RUNTIME_COUNTERS.indexOf(c.counter)<0||!Number.isFinite(c.perCounter)||c.perCounter===0)
+            errs.push("Runtime conditional #"+(i+1)+" needs a known counter and non-zero finite perCounter.");
+        } else if(RUNTIME_CONDITIONS.indexOf(c.condition)<0||!Number.isFinite(c.value)||!Number.isFinite(c.intParam)){
+          errs.push("Runtime conditional #"+(i+1)+" has an invalid condition/value/parameter.");
+        }
+        if(c.stat==="ATKSPD"&&c.mode==="condition"&&(c.op!=="MultiplyFinal"||c.value<=0))
+          errs.push("Runtime conditional #"+(i+1)+" ATKSPD must be a positive MultiplyFinal interval factor.");
+      });
+      v.runtime.keywords.forEach(function(k,i){
+        if(RUNTIME_ACTIONS.indexOf(k.action)<0||RUNTIME_HOOKS.indexOf(k.hook)<0||
+           !Number.isFinite(k.intParam)||!Number.isFinite(k.floatParam))
+          errs.push("Runtime keyword #"+(i+1)+" has an unknown action/hook or non-finite parameter.");
+      });
     }
     return {errs:errs, warns:warns};
   }
@@ -1045,6 +1167,21 @@
 
   // ---------- God editor ----------
   var editingGod = null, gTraitsSel = [];
+
+  // Keeps the Anchor Trait dropdown in sync with the favored-traits chips.
+  // Called on open and on every chip toggle; preserves the current pick when still legal.
+  function refreshAnchorOptions(preferred){
+    var sel = qs("gAnchor");
+    var keep = (typeof preferred === "string" && preferred) ? preferred : sel.value;
+    sel.innerHTML = "";
+    if(!gTraitsSel.length){
+      sel.appendChild(new Option("(pick a favored trait first)", ""));
+      return;
+    }
+    gTraitsSel.forEach(function(t){ sel.appendChild(new Option(t, t)); });
+    sel.value = (gTraitsSel.indexOf(keep) >= 0) ? keep : gTraitsSel[0];
+  }
+
   function openGodEditor(name){
     editingGod = name || null;
     var g = name ? GODS[name] : null;
@@ -1054,7 +1191,8 @@
     qs("gAccent").value = g ? (g.accent||"#c9a227") : "#c9a227";
     qs("gIdentity").value = g ? (g.identity||"") : "";
     gTraitsSel = g ? (g.traits||[]).slice() : [];
-    buildTraitChips(qs("gTraits"), gTraitsSel, null);
+    buildTraitChips(qs("gTraits"), gTraitsSel, refreshAnchorOptions);
+    refreshAnchorOptions(g ? (g.anchorTrait||"") : "");
     qs("gTagline").value = g ? (g.tagline||"") : "";
     qs("gRuleName").value = (g && g.rule) ? (g.rule.name||"") : "";
     qs("gRuleText").value = (g && g.rule) ? (g.rule.text||"") : "";
@@ -1071,6 +1209,7 @@
       accent:qs("gAccent").value.trim()||"#c9a227",
       identity:qs("gIdentity").value.trim(),
       traits:gTraitsSel.slice(),
+      anchorTrait:qs("gAnchor").value||"",
       tagline:qs("gTagline").value.trim(),
       rule:{name:qs("gRuleName").value.trim(), text:qs("gRuleText").value.trim()}
     };
@@ -1080,6 +1219,11 @@
     if(!g.name) errs.push("God name is required.");
     if(g.name!==editingGod && GODS[g.name]) errs.push("A God named \""+g.name+"\" already exists.");
     if(!g.traits.length) errs.push("Pick at least one favored Moral Trait.");
+    if(!g.anchorTrait) errs.push("Pick an Anchor Trait.");
+    else if(g.traits.indexOf(g.anchorTrait)<0) errs.push("Anchor Trait \""+g.anchorTrait+"\" must also be a favored Moral Trait.");
+    // Faction invariant: Heroes never carry Pride; Villains never carry Humility.
+    if(g.faction==="Heroic" && g.traits.indexOf("Pride")>=0) errs.push("A Heroic God cannot carry Pride.");
+    if(g.faction==="Villainous" && g.traits.indexOf("Humility")>=0) errs.push("A Villainous God cannot carry Humility.");
     if(!g.rule.name) errs.push("God Rule needs a name.");
     if(!g.rule.text) errs.push("God Rule needs text.");
     return {errs:errs, warns:warns};
@@ -1119,7 +1263,7 @@
   }
   function syncedMeta(){
     var m={}; Object.keys(META).forEach(function(k){ m[k]=META[k]; });
-    m.gods=GODS; return m;
+    m.gods=GODS; m.runtimeSchemaVersion=RUNTIME_SCHEMA_VERSION; return m;
   }
   function exportVersesJs(){ download("verses.js", "window.DR_VERSES = "+JSON.stringify({_meta:syncedMeta(), verses:VERSES})+";\n"); }
   function exportVersesJson(){ download("verses.json", JSON.stringify({_meta:syncedMeta(), verses:VERSES}, null, 2)); }
@@ -1406,11 +1550,9 @@
   qs("mTier").addEventListener("change", function(){ syncTierUI(); });
   qs("mGod").addEventListener("change", godLockNote);
   qs("addEff").addEventListener("click", function(){ addEffRow("ATK", 1); });
-  qs("mLockToggle").addEventListener("click", function(){
-    var on = qs("mGodLocked").value!=="true";
-    qs("mGodLocked").value = on?"true":"false";
-    this.classList.toggle("on", on);
-  });
+  qs("addRuntimeMod").addEventListener("click", function(){ addRuntimeModifierRow(); });
+  qs("addRuntimeCond").addEventListener("click", function(){ addRuntimeConditionalRow(); });
+  qs("addRuntimeKw").addEventListener("click", function(){ addRuntimeKeywordRow(); });
   qs("mSave").addEventListener("click", saveVerse);
   qs("mDelete").addEventListener("click", deleteVerse);
   qs("mCancel").addEventListener("click", function(){ closeModal("modal"); });
