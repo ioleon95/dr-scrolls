@@ -136,7 +136,7 @@
       <li><span class="n">1</span><div><b>Power &le; 60.</b> Every Verse has a <b>Power Cost</b>. Your whole Scripture must spend <b>no more than 60 Power</b> (budget cap, not a fixed target).</div></li>
       <li><span class="n">2</span><div><b>At least 30 Verses.</b> More cheap Verses vs. fewer expensive ones is the core deckbuilding tension.</div></li>
       <li><span class="n">3</span><div><b>Singleton.</b> No two copies of the same Verse — <i>unless</i> a God or a Verse rule specifically allows it.</div></li>
-      <li><span class="n">4</span><div><b>Divine cap.</b> At most <b>one Divine</b> Verse per Scripture. <span class="q">❓ confirm cap for Sacred</span></div></li>
+      <li><span class="n">4</span><div><b>Divine cap.</b> At most <b>one Divine</b> Verse per Scripture. There is <b>no separate Sacred cap</b>: the 60-Power budget and minimum 30-card Scripture constrain expensive-card inclusion.</div></li>
     </ul>
 
     <p class="kicker" style="margin-top:18px">The power system</p>
@@ -213,7 +213,7 @@
 
     <p class="subk">Core flow</p>
     <div class="gloss">
-      <div class="term"><b>Level up</b><p>The trigger. Each level-up runs one draw → activation.</p></div>
+      <div class="term"><b>Level up</b><p>A purchased level grants one standard draw to claim; claiming starts draw → choice → activation without pausing.</p></div>
       <div class="term"><b>Draw "N"</b><p>Reveal N Verses from your Scripture into your <b>Slots</b>.</p></div>
       <div class="term"><b>Load</b><p>Placing a Verse into a Slot so it can resolve. Loading <b>consumes a Slot</b>.</p></div>
       <div class="term"><b>May</b><p>Optional. <code>may choose</code> = you can decline.</p></div>
@@ -283,7 +283,7 @@
       <b>Ascend</b> is how you trade Slots for power.</p>
 
     <div class="flow">
-      <div class="fstep"><span class="num">STEP 1</span><b>Level up</b><p>You gain a level → a draw begins.</p></div>
+      <div class="fstep"><span class="num">STEP 1</span><b>Buy a level, claim its draw</b><p>Spend your faction's currency, then claim the available draw during Prep or Invade.</p></div>
       <div class="fstep"><span class="num">STEP 2</span><b>Load</b><p>Verses fill your Slots (draw / discard / next).</p></div>
       <div class="fstep"><span class="num">STEP 3</span><b>Interaction</b><p>You choose — <i>if</i> the rule gives you a choice.</p></div>
       <div class="fstep"><span class="num">STEP 4</span><b>Activation</b><p>Kept Verse(s) resolve into your <b>Gospel</b> (max 6); discards fall to <b>Ether</b>.</p></div>
@@ -362,36 +362,68 @@
     <p class="note">Lore hook (the joke): both pantheons feed on the souls of champions. Heroes purge dungeons, Villains slay champions — both sides celebrate, both fatten the same gods. Each God accepts only Verses of its favored <b>Moral Traits</b> (plus <b>Neutral</b> and its own <b>God-Locked</b> Verses) — see <i>Building a Scripture → Verse filters</i>.</p>
   </div>
 
-  <!-- F. EXP, GOLD, LEVEL -->
+  <!-- F. GOLD, RESONITE, LEVEL -->
   <div class="sec">
     <p class="kicker">Progression</p>
-    <h2>⬆️ EXP, Gold &amp; what “Level” means</h2>
-    <p class="lead">A <b>Level</b> is your mid-match growth tick: <b>every level-up triggers a Verse draw</b>.
-      More levels = more Verses = a stronger character. Both sides climb the same ladder — they
-      just pay for the rungs differently.</p>
+    <h2>⬆️ Gold, Resonite &amp; what “Level” means</h2>
+    <p class="lead"><b>Approved RR progression, September 13, 2026:</b> start at <b>level 1</b>
+      with <b>no free starting draw</b>; maximum <b>level 10</b>. Both factions buy levels.
+      Each successful level purchase grants one standard draw to claim: normally <b>draw 3,
+      select 1, discard 2 to Ether</b>, subject to authored God/Verse exceptions.
+      Nine level-ups provide nine standard draw opportunities. God milestones occur at <b>levels 3, 6 and 9</b>.</p>
 
     <table class="eco">
       <tr><th>Side</th><th>What you earn</th><th>How you earn it</th><th>How you level</th></tr>
       <tr>
         <td><span class="side-h">🦸 Heroes</span></td>
         <td><b>Gold</b></td>
-        <td>Keeping the peace &amp; raiding the dungeon</td>
-        <td><b>Buy</b> your levels with Gold (the Market / Indulgence)</td>
+        <td>Market trading and eligible Villain Minion kills</td>
+        <td><b>Buy</b> levels by spending Gold</td>
       </tr>
       <tr>
         <td><span class="side-v">🦹 Villains</span></td>
-        <td><b>XP</b></td>
-        <td>Building dungeons &amp; raiding</td>
-        <td><b>Gain</b> levels automatically as XP fills</td>
+        <td><b>Resonite</b></td>
+        <td>Digging, Hero Minion kills and Hero structure destruction; permitted Altar conversion remains</td>
+        <td><b>Buy</b> levels by spending Resonite from the same stash used for other purchases</td>
       </tr>
     </table>
-    <p class="note">Same core loop (a level → a draw), two flavors: Heroes <b>spend</b> to grow, Villains <b>earn</b> to grow. <span class="q">❓ confirm: is there a level cap / do Gold-levels and XP-levels both feed the same draw?</span></p>
+    <p class="note">Resonite is the Villain's Gold-equivalent <b>spendable currency</b>, not renamed XP.
+      There is <b>no separate Villain XP track</b>, no automatic level from collection, and no lifetime-earned threshold.
+      A successful purchase debits the price and grants the level/draw once; insufficient funds or duplicate requests
+      must not grant a level or draw. Other Resonite purchases compete for that same balance.</p>
+    <table class="eco">
+      <tr><th>Reached level</th><th>Hero Gold cost</th><th>Villain Resonite cost</th></tr>
+      <tr><td>2</td><td>6</td><td>10</td></tr>
+      <tr><td>3</td><td>8</td><td>15</td></tr>
+      <tr><td>4</td><td>10</td><td>20</td></tr>
+      <tr><td>5</td><td>12</td><td>25</td></tr>
+      <tr><td>6</td><td>14</td><td>30</td></tr>
+      <tr><td>7</td><td>16</td><td>35</td></tr>
+      <tr><td>8</td><td>18</td><td>40</td></tr>
+      <tr><td>9</td><td>20</td><td>45</td></tr>
+      <tr><td>10</td><td>22</td><td>50</td></tr>
+      <tr><th>Total spent on levels</th><th>126</th><th>270</th></tr>
+    </table>
+    <p class="note">These are <b>per-purchase costs</b>, not earned-resource thresholds.
+      For advance <code>n = 1..9</code>, Hero cost is <code>4 + 2n</code> Gold and Villain cost is
+      <code>5 + 5n</code> Resonite. Spending elsewhere increases how much you must collect to afford all levels.</p>
+    <p class="note"><b>Claim flow:</b> click an available draw during active Prep or Invade.
+      Closing and reopening retains the same offer; select a Verse before claiming another standard draw.
+      Effects apply immediately; choices remain available after Devotee death with legal targets.
+      Neither opening nor selecting pauses the simulation, opponent or timer.</p>
+    <p class="note"><b>Still open:</b> Resonite payout amounts and repeat eligibility, detailed God/stat rules,
+      milestone choice handling, exhaustion and card-resolution policies. Keep the approved one-Resonite
+      hit/four-blank digging bag; this change does not approve extra guaranteed digging income, sum old
+      XP and Resonite rewards, or convert upgrade XP into a Resonite rebate.
+      Existing unresolved keyword/God descriptions are not blanket approval of PE's proposed resolutions.</p>
   </div>
 
   <div class="buildbar">
-    🔧 <b>Build reality check:</b> the shared <b>calculator</b> and the Hero <b>buy-a-Verse</b> path are built &amp; tested.
+    🔧 <b>Historical DR build snapshot — not current RR implementation evidence:</b>
+    the following earlier claims were not re-verified for this update and do not establish Rival Rites gate completion.
+    The shared <b>calculator</b> and the Hero <b>buy-a-Verse</b> path were reported built &amp; tested.
     The <b>keyword engine</b> (Draw/Choose/Discard/Sanctify/Reverent/Ascend), the <b>Slot</b> system, <b>God Rules</b>,
-    and authored <b>Verses &amp; Gods</b> are designed here but <b>not yet in code</b> — that’s the bulk of the work ahead.
+    and authored <b>Verses &amp; Gods</b> were reported designed but <b>not yet in code</b> at that earlier snapshot.
   </div>
 
   <footer>Moderate view · go lighter with the <a href="simple.html">simple view</a> or deeper with the <a href="outline.html">technical view</a>. <span class="q">❓</span> tags mark things for you to confirm or fill in.</footer>
