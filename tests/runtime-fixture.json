@@ -1,0 +1,18 @@
+{
+  "verses": [
+    {
+      "id": "TEST-01",
+      "runtime": {
+        "modifiers": [{"stat":"ATK","op":"Additive","value":2,"extension":{"keep":true}}],
+        "conditionalModifiers": [
+          {"mode":"eventScaled","stat":"HP","op":"Additive","event":"SampleEvent","perEvent":1,"extension":{"keep":true}},
+          {"mode":"counterDerived","stat":"DEF","op":"Additive","counter":"Devour","extension":{"keep":true}}
+        ],
+        "keywords": [{"action":"CounterAdd","hook":"on-structure-fall","intParam":1,"floatParam":0,"counter":"Devour"}],
+        "statPolicies": [{"policy":"example-only","nested":{"keep":true}}],
+        "enginePolicies": [{"policy":"example-only","nested":{"keep":true}}],
+        "extension":{"keep":true}
+      }
+    }
+  ]
+}

@@ -275,7 +275,7 @@
   .sheet .sub{color:var(--soft);font-size:13px;margin:0 0 16px;}
   .fld{margin:0 0 13px;}
   .fld>label{display:block;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint);margin:0 0 5px;}
-  .fld input[type=text],.fld input[type=number],.fld textarea,.fld select{
+  .fld input[type=text],.fld input[type=password],.fld input[type=number],.fld textarea,.fld select{
     width:100%;background:var(--stone);border:1px solid var(--line);color:var(--ink);
     border-radius:9px;padding:9px 11px;font:inherit;}
   .fld textarea{resize:vertical;min-height:52px;}
@@ -316,6 +316,9 @@
   .sheet .acts .cancel{background:var(--stone2);color:var(--soft);}
   .sheet .acts .del{background:#2a1113;color:var(--bad);border-color:#7a2530;}
   .sheet .acts .del:hover{border-color:var(--no);}
+  #smodal .acts{flex-wrap:wrap;}
+  #smodal .acts button{white-space:normal;flex:1 1 140px;min-height:44px;}
+  #smodal .acts .fspace{display:none;}
   .locked-note{font-size:11px;color:var(--faint);margin-top:4px;}
 </style>
 </head>
@@ -371,6 +374,7 @@
     <div class="fspace"></div>
     <span class="note" id="ovNote"></span>
   </div>
+  <div class="vmsg" id="nasStatus" role="status" aria-live="polite" style="display:none"></div>
 
   <!-- filters -->
   <div class="filters">
@@ -467,6 +471,12 @@
           <button class="addeff" id="addRuntimeKw" type="button">+ add runtime keyword</button></div>
       </div>
 
+      <details class="fld"><summary>Advanced runtime policies</summary>
+        <p>These rules are preserved when editing other fields. Unreal preflight validates their supported values.</p>
+        <label for="mStatPolicies">Stat policies (JSON array)</label><textarea id="mStatPolicies" rows="6"></textarea>
+        <label for="mEnginePolicies">Engine policies (JSON array)</label><textarea id="mEnginePolicies" rows="6"></textarea>
+      </details>
+
       <div class="fld"><label>Rules Text (keyword rules; carries the scaling cost for Sacred/Divine)</label>
         <textarea id="mText" placeholder='e.g. Devour "3". Gain +1 ATK per Devour Counter; each Counter also lowers your DEF by 1.'></textarea>
       </div>
@@ -541,20 +551,22 @@
 <div class="modal" id="smodal">
   <div class="sheet">
     <h2>&#9729; Sync</h2>
-    <p class="sub"><b>NAS</b> keeps one copy of your Verses on your always-on NAS. Open this page <i>from the NAS</i> on any device and every edit is shared &mdash; nothing leaves your private network. Leave the address blank when the page is already served by the NAS.</p>
+    <p class="sub"><b>NAS</b> keeps the shared copy of your Verses. Edits stay on this device until you click Save to NAS. Stale saves are rejected when another device has saved first. Leave the address blank when this page is served by the NAS.</p>
     <div class="fld"><label>NAS address (blank = this server)</label><input type="text" id="nasBase" placeholder="http://192.168.68.58:8088" spellcheck="false" /></div>
     <div class="fld"><label>Access token (the secret you set on the NAS)</label><input type="password" id="nasToken" placeholder="your private passphrase" autocomplete="off" spellcheck="false" /></div>
+    <p class="sub">Access tokens stay in memory until this page closes or reloads. Use your trusted NAS address; HTTP does not encrypt the connection.</p>
     <div class="vmsg" id="nasMsg" style="display:none"></div>
     <div class="acts">
       <button class="save" id="nasSaveBtn">&#11014; Save to NAS</button>
       <button class="cancel" id="nasLoadBtn">&#11015; Load from NAS</button>
+      <button class="cancel" id="nasBackupBtn">Download local backup</button>
       <div class="fspace"></div>
       <button class="cancel" id="nasClose">Close</button>
     </div>
     <hr style="border:none;border-top:1px solid #1b2130;margin:18px 0 12px" />
     <h2 style="font-size:15px">&#9729; GitHub (optional)</h2>
-    <p class="sub">One private repo holds <b>verses.json</b> &mdash; the same file your phone, PC, and the Unreal importer read. Your token is stored only in this browser (this device).</p>
-    <div class="fld"><label>Personal access token &mdash; fine-grained, Contents: Read &amp; write</label><input type="text" id="ghToken" placeholder="github_pat_&hellip;" autocomplete="off" spellcheck="false" /></div>
+    <p class="sub">Optional GitHub sync is separate from NAS sync. Its access token stays in memory until this page closes or reloads.</p>
+    <div class="fld"><label>Personal access token &mdash; fine-grained, Contents: Read &amp; write</label><input type="password" id="ghToken" placeholder="github_pat_&hellip;" autocomplete="off" spellcheck="false" /></div>
     <div class="row2">
       <div class="fld"><label>Owner (your username / org)</label><input type="text" id="ghOwner" placeholder="your-username" spellcheck="false" /></div>
       <div class="fld"><label>Repo</label><input type="text" id="ghRepo" placeholder="dr-verse-data" spellcheck="false" /></div>
@@ -615,14 +627,25 @@
     "on-phase-switch","on-devour"];
 
   // ---- localStorage overrides: verse upserts/deletes + god upserts/deletes, merged over the on-disk set ----
+  var NAS_BASELINE=null, NAS_BUSY=false;
   function loadOverrides(){
     try {
       var o = JSON.parse(localStorage.getItem(LS_KEY)) || {};
-      return {upserts:o.upserts||{}, deletes:o.deletes||[], godUpserts:o.godUpserts||{}, godDeletes:o.godDeletes||[]};
+      return {upserts:o.upserts||{}, deletes:o.deletes||[], godUpserts:o.godUpserts||{}, godDeletes:o.godDeletes||[], nasBaseline:o.nasBaseline||null};
     } catch(e){ return {upserts:{},deletes:[],godUpserts:{},godDeletes:[]}; }
   }
-  function saveOverrides(ov){ try{ localStorage.setItem(LS_KEY, JSON.stringify(ov)); }catch(e){} }
+  function saveOverrides(ov){
+    ov.nasBaseline=hasOverrides()?NAS_BASELINE:null;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(ov)); }
+    catch(e){ alert("This browser could not store your local edits. Keep this page open and download a JSON backup."); }
+  }
   var OV = loadOverrides();
+  // Restore the actual editing baseline after reload, even if the NAS has moved on.
+  if(hasOverrides() && OV.nasBaseline && OV.nasBaseline.data){
+    NAS_BASELINE=OV.nasBaseline; DATA=NAS_BASELINE.data; META=DATA._meta||{};
+    STAT=META.stats||STAT; GODS=META.gods||{};
+    DISK_GODS={}; Object.keys(GODS).forEach(function(k){ DISK_GODS[k]=GODS[k]; });
+  }
   function applyOverrides(){
     // start from a fresh copy of the on-disk verses, drop deletes, apply/append upserts
     var base = (DATA.verses || []).slice();
@@ -924,63 +947,187 @@
     }
     return out;
   }
+  // Keep the complete authored record; controls modify only fields they expose.
+  function runtimeClone(value){ return JSON.parse(JSON.stringify(value)); }
+  var editingRuntime = {};
   function runtimeSelect(values, current, field){
     var sel=document.createElement("select"); sel.setAttribute("data-field",field);
-    values.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;if(v===current)o.selected=true;sel.appendChild(o);});
+    var choices=values.slice();
+    if(current!=null && choices.indexOf(current)<0) choices.push(current);
+    choices.forEach(function(v){var o=document.createElement("option");o.value=v;o.textContent=v;sel.appendChild(o);});
+    sel.value=current==null?choices[0]:current; sel._runtimeInitial=sel.value;
     return sel;
   }
   function runtimeNumber(value, field){
     var input=document.createElement("input"); input.type="number"; input.step="any";
-    input.value=(value==null?0:value); input.setAttribute("data-field",field); return input;
+    input.value=value==null?0:value; input.setAttribute("data-field",field);
+    input._runtimeInitial=input.value; return input;
   }
   function runtimeDelete(row){
-    var del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="\u2715";
+    var del=document.createElement("button"); del.type="button"; del.className="del"; del.textContent="Delete rule";
     del.addEventListener("click",function(){row.parentNode.removeChild(row);}); return del;
   }
+  function runtimeAdvanced(row,hostId){
+    var button=document.createElement("button"); button.type="button"; button.textContent="Edit full rule JSON";
+    button.addEventListener("click",function(){
+      try {
+        var record=readRuntimeRow(row), host=qs(hostId);
+        addRuntimeJsonRow(hostId,record);host.replaceChild(host.lastChild,row);
+      } catch(error){alert("Correct the numeric fields before opening the full rule editor.");}
+    });
+    return button;
+  }
+  function runtimeRow(record){
+    var row=document.createElement("div"); row.className="runtime-row";
+    row._runtimeOriginal=record==null?null:runtimeClone(record); return row;
+  }
+  function readRuntimeRow(row){
+    if(row._runtimeJson){
+      var parsed=JSON.parse(row._runtimeJson.value);
+      if(!parsed || typeof parsed!=="object" || Array.isArray(parsed)) throw new Error("An advanced runtime rule must be a JSON object.");
+      return parsed;
+    }
+    var out=row._runtimeOriginal==null?{}:runtimeClone(row._runtimeOriginal);
+    Array.prototype.forEach.call(row.querySelectorAll("[data-field]"),function(el){
+      var field=el.getAttribute("data-field");
+      if(row._runtimeOriginal!=null && el.value===el._runtimeInitial) return;
+      var value=el.type==="number"?Number(el.value):el.value;
+      if(el.type==="number" && (!el.value.trim() || !Number.isFinite(value))) throw new Error("Runtime numeric values must be finite numbers.");
+      out[field]=value;
+    });
+    return out;
+  }
+  function addRuntimeJsonRow(host, record){
+    var row=runtimeRow(record), label=document.createElement("label"), input=document.createElement("textarea");
+    row.style.display="block"; label.textContent="Advanced rule (complete JSON)";
+    input.value=JSON.stringify(record,null,2); input.rows=8; input.setAttribute("aria-label","Advanced runtime rule JSON");
+    row._runtimeJson=input; row.appendChild(label); row.appendChild(input); row.appendChild(runtimeDelete(row));
+    qs(host).appendChild(row);
+  }
   function addRuntimeModifierRow(m){
-    m=m||{}; var row=document.createElement("div"); row.className="runtime-row";
-    row.appendChild(runtimeSelect(STAT_KEYS,m.stat||"ATK","stat"));
-    row.appendChild(runtimeSelect(RUNTIME_OPS,m.op||"Additive","op"));
-    row.appendChild(runtimeNumber(m.value==null?1:m.value,"value"));
-    row.appendChild(document.createElement("span")); row.appendChild(document.createElement("span"));
+    var row=runtimeRow(m); m=m||{stat:"ATK",op:"Additive",value:1};
+    row.appendChild(runtimeSelect(STAT_KEYS,m.stat,"stat"));
+    row.appendChild(runtimeSelect(RUNTIME_OPS,m.op,"op"));
+    row.appendChild(runtimeNumber(m.value,"value"));
+    row.appendChild(runtimeAdvanced(row,"mRuntimeMods"));
     row.appendChild(runtimeDelete(row)); qs("mRuntimeMods").appendChild(row);
   }
   function addRuntimeConditionalRow(c){
-    c=c||{}; var row=document.createElement("div"); row.className="runtime-row conditional";
-    row.appendChild(runtimeSelect(RUNTIME_MODES,c.mode||"condition","mode"));
-    row.appendChild(runtimeSelect(STAT_KEYS,c.stat||"ATK","stat"));
-    row.appendChild(runtimeSelect(RUNTIME_OPS,c.op||"Additive","op"));
-    row.appendChild(runtimeNumber(c.value==null?1:c.value,"value"));
-    row.appendChild(runtimeSelect(RUNTIME_CONDITIONS,c.condition||"GospelFull","condition"));
-    row.appendChild(runtimeSelect(RUNTIME_COUNTERS,c.counter||"Devour","counter"));
-    row.appendChild(runtimeNumber(c.mode==="counterScaled"?(c.perCounter==null?1:c.perCounter):(c.intParam||0),
-      c.mode==="counterScaled"?"perCounter":"intParam"));
-    row.appendChild(runtimeDelete(row)); qs("mRuntimeConds").appendChild(row);
-    row.querySelector('[data-field="mode"]').addEventListener("change",function(){
-      var n=row.querySelector('[data-field="perCounter"],[data-field="intParam"]');
-      n.setAttribute("data-field",this.value==="counterScaled"?"perCounter":"intParam");
+    if(c && (RUNTIME_MODES.indexOf(c.mode)<0 || (c.mode==="condition" && RUNTIME_CONDITIONS.indexOf(c.condition)<0))){
+      addRuntimeJsonRow("mRuntimeConds",c); return;
+    }
+    var row=runtimeRow(c); c=c||{mode:"condition",stat:"ATK",op:"Additive",value:1,condition:"GospelFull",intParam:0};
+    row.className="runtime-row conditional";
+    var mode=runtimeSelect(RUNTIME_MODES,c.mode,"mode"); row.appendChild(mode);
+    row.appendChild(runtimeSelect(STAT_KEYS,c.stat,"stat"));
+    row.appendChild(runtimeSelect(RUNTIME_OPS,c.op,"op"));
+    if(c.mode==="counterScaled"){
+      row.appendChild(runtimeSelect(RUNTIME_COUNTERS,c.counter,"counter"));
+      row.appendChild(runtimeNumber(c.perCounter,"perCounter"));
+    } else {
+      row.appendChild(runtimeNumber(c.value,"value"));
+      var condition=runtimeSelect(RUNTIME_CONDITIONS,c.condition,"condition"); row.appendChild(condition);
+      row.appendChild(runtimeNumber(c.intParam,"intParam"));
+      if(c.condition==="CounterThreshold") row.appendChild(runtimeSelect(RUNTIME_COUNTERS,c.counter,"counter"));
+      condition.addEventListener("change",function(){
+        var updated=readRuntimeRow(row);
+        if(updated.condition==="CounterThreshold") updated.counter="Devour";
+        else delete updated.counter;
+        replaceConditionalRow(row,updated);
+      });
+    }
+    mode.addEventListener("change",function(){
+      var updated=readRuntimeRow(row);
+      ["value","points","condition","intParam","counter","perCounter"].forEach(function(key){delete updated[key];});
+      if(updated.mode==="counterScaled"){updated.counter="Devour";updated.perCounter=1;}
+      else {updated.value=1;updated.condition="GospelFull";updated.intParam=0;}
+      replaceConditionalRow(row,updated);
     });
+    row.appendChild(runtimeAdvanced(row,"mRuntimeConds"));
+    row.appendChild(runtimeDelete(row)); qs("mRuntimeConds").appendChild(row);
+  }
+  function replaceConditionalRow(row,record){
+    var host=qs("mRuntimeConds"); addRuntimeConditionalRow(record);
+    host.replaceChild(host.lastChild,row);
   }
   function addRuntimeKeywordRow(k){
-    k=k||{}; var row=document.createElement("div"); row.className="runtime-row";
-    row.appendChild(runtimeSelect(RUNTIME_ACTIONS,k.action||"Sanctify","action"));
-    row.appendChild(runtimeSelect(RUNTIME_HOOKS,k.hook||"on-pick","hook"));
-    row.appendChild(runtimeNumber(k.intParam||0,"intParam"));
-    row.appendChild(runtimeNumber(k.floatParam||0,"floatParam"));
-    row.appendChild(document.createElement("span")); row.appendChild(runtimeDelete(row));
-    qs("mRuntimeKws").appendChild(row);
+    var row=runtimeRow(k); k=k||{action:"Sanctify",hook:"on-pick",intParam:0,floatParam:0};
+    row.appendChild(runtimeSelect(RUNTIME_ACTIONS,k.action,"action"));
+    row.appendChild(runtimeSelect(RUNTIME_HOOKS,k.hook,"hook"));
+    row.appendChild(runtimeNumber(k.intParam,"intParam"));
+    row.appendChild(runtimeNumber(k.floatParam,"floatParam"));
+    row.appendChild(runtimeAdvanced(row,"mRuntimeKws"));
+    row.appendChild(runtimeDelete(row)); qs("mRuntimeKws").appendChild(row);
   }
   function readRuntimeRows(hostId){
-    return Array.prototype.map.call(qs(hostId).querySelectorAll(".runtime-row"),function(row){
-      var out={}; Array.prototype.forEach.call(row.querySelectorAll("[data-field]"),function(el){
-        var f=el.getAttribute("data-field"); out[f]=el.type==="number"?parseFloat(el.value):el.value;
-      }); return out;
-    });
+    return Array.prototype.map.call(qs(hostId).querySelectorAll(".runtime-row"),readRuntimeRow);
+  }
+  function setRuntimeEditor(runtime){
+    editingRuntime=runtimeClone(runtime||{});
+    ["mRuntimeMods","mRuntimeConds","mRuntimeKws"].forEach(function(id){qs(id).innerHTML="";});
+    (editingRuntime.modifiers||[]).forEach(addRuntimeModifierRow);
+    (editingRuntime.conditionalModifiers||[]).forEach(addRuntimeConditionalRow);
+    (editingRuntime.keywords||[]).forEach(addRuntimeKeywordRow);
+    qs("mStatPolicies").value=JSON.stringify(editingRuntime.statPolicies||[],null,2);
+    qs("mEnginePolicies").value=JSON.stringify(editingRuntime.enginePolicies||[],null,2);
   }
   function readRuntime(){
-    return {modifiers:readRuntimeRows("mRuntimeMods"),
-      conditionalModifiers:readRuntimeRows("mRuntimeConds"),keywords:readRuntimeRows("mRuntimeKws")};
+    var out=runtimeClone(editingRuntime);
+    out.modifiers=readRuntimeRows("mRuntimeMods");
+    out.conditionalModifiers=readRuntimeRows("mRuntimeConds");
+    out.keywords=readRuntimeRows("mRuntimeKws");
+    out.statPolicies=JSON.parse(qs("mStatPolicies").value);
+    out.enginePolicies=JSON.parse(qs("mEnginePolicies").value);
+    return out;
   }
+  function validateRuntime(runtime){
+    var errors=[];
+    if(!runtime || typeof runtime!=="object" || Array.isArray(runtime)) return ["Runtime must be an object."];
+    ["modifiers","conditionalModifiers","keywords","statPolicies","enginePolicies"].forEach(function(key){
+      if(!Array.isArray(runtime[key])) errors.push("Runtime "+key+" must be an array.");
+      else runtime[key].forEach(function(record,index){
+        if(!record || typeof record!=="object" || Array.isArray(record)) errors.push("Runtime "+key+" #"+(index+1)+" must be an object.");
+      });
+    });
+    if(errors.length) return errors;
+    runtime.modifiers.forEach(function(m,index){
+      if(STAT_KEYS.indexOf(m.stat)<0 || RUNTIME_OPS.indexOf(m.op)<0 || !Number.isFinite(m.value))
+        errors.push("Runtime modifier #"+(index+1)+" has an unknown stat/op or invalid value.");
+      if(m.stat==="ATKSPD" && (m.op!=="MultiplyFinal" || m.value<=0))
+        errors.push("ATKSPD requires a positive MultiplyFinal interval factor.");
+    });
+    runtime.conditionalModifiers.forEach(function(c,index){
+      var modes=["condition","counterScaled","counterDerived","engineCondition","eventScaled"];
+      if(modes.indexOf(c.mode)<0) errors.push("Runtime conditional #"+(index+1)+" has an unknown mode.");
+      if(c.mode!=="engineCondition" && (STAT_KEYS.indexOf(c.stat)<0 || RUNTIME_OPS.indexOf(c.op)<0))
+        errors.push("Runtime conditional #"+(index+1)+" has an unknown stat/op.");
+      if(c.mode==="counterScaled"){
+        if(c.counter!=="Devour" || !Number.isFinite(c.perCounter) || c.perCounter===0)
+          errors.push("Counter scaling requires Devour and a finite non-zero perCounter.");
+        if(c.stat==="ATKSPD") errors.push("ATKSPD cannot be counter-scaled linearly.");
+      }
+      if(c.mode==="condition" || c.mode==="engineCondition"){
+        var conditions=["GospelFull","LevelAtLeast","CounterThreshold","CurrentHPAtLeast","ZoneCountAtLeast","SourceVerseSealed","SelfCounterAggregateGreaterThanOpponent"];
+        if(conditions.indexOf(c.condition)<0 || !Number.isFinite(c.value) || !Number.isInteger(c.intParam))
+          errors.push("Runtime conditional #"+(index+1)+" has an invalid condition/value/parameter.");
+        if(c.mode==="condition" && c.stat==="ATKSPD" && (c.op!=="MultiplyFinal" || c.value<=0))
+          errors.push("ATKSPD requires a positive MultiplyFinal interval factor.");
+      }
+    });
+    runtime.keywords.forEach(function(k,index){
+      var actions=RUNTIME_ACTIONS.concat(["CounterAdd","ApplyStatModifier","ApplyCurrentLevelModifier","ApplyResultScaledModifier","ApplyResultPercentReduction","AccumulateStatPolicy"]);
+      var hooks=RUNTIME_HOOKS.concat(["on-owner-death","on-round-start","on-sacrifice-resolved","on-revive-resolved","on-absolve-resolved","on-smite-resolved","on-surge-resolved"]);
+      if(actions.indexOf(k.action)<0 || hooks.indexOf(k.hook)<0 || !Number.isInteger(k.intParam) || !Number.isFinite(k.floatParam))
+        errors.push("Runtime keyword #"+(index+1)+" has an unknown action/hook or invalid parameter.");
+    });
+    function checkNumbers(value){
+      if(typeof value==="number" && !Number.isFinite(value)) errors.push("Runtime numbers must be finite.");
+      else if(value && typeof value==="object") Object.keys(value).forEach(function(key){checkNumbers(value[key]);});
+    }
+    checkNumbers(runtime);
+    return errors;
+  }
+
   function populateGodSelect(sel, current){
     sel.innerHTML='<option value="">\u2014 Neutral (no God) \u2014</option>';
     Object.keys(GODS).forEach(function(name){
@@ -1032,11 +1179,7 @@
     buildKwChips(qs("mKws"), vKws);
     qs("mEffs").innerHTML="";
     if(v){ (v.effects||[]).forEach(function(e){ addEffRow(e.stat, e.value); }); }
-    qs("mRuntimeMods").innerHTML=""; qs("mRuntimeConds").innerHTML=""; qs("mRuntimeKws").innerHTML="";
-    var runtime=v&&v.runtime?v.runtime:{modifiers:[],conditionalModifiers:[],keywords:[]};
-    (runtime.modifiers||[]).forEach(addRuntimeModifierRow);
-    (runtime.conditionalModifiers||[]).forEach(addRuntimeConditionalRow);
-    (runtime.keywords||[]).forEach(addRuntimeKeywordRow);
+    setRuntimeEditor(v ? v.runtime : null);
     qs("mText").value = v ? (v.text||"") : "";
     qs("mFlavor").value = v ? (v.flavor||"") : "";
     qs("mDelete").style.display = v ? "inline-block":"none";
@@ -1105,36 +1248,7 @@
     } else if(!v.effects.length && !v.text){
       warns.push("Standard/Doctrine Verse has no stat effects and no text.");
     }
-    if(!v.runtime || !Array.isArray(v.runtime.modifiers) ||
-       !Array.isArray(v.runtime.conditionalModifiers) || !Array.isArray(v.runtime.keywords)){
-      errs.push("Runtime schema v1 requires modifiers, conditionalModifiers, and keywords arrays.");
-    } else {
-      v.runtime.modifiers.forEach(function(m,i){
-        if(STAT_KEYS.indexOf(m.stat)<0||RUNTIME_OPS.indexOf(m.op)<0||!Number.isFinite(m.value))
-          errs.push("Runtime modifier #"+(i+1)+" has an unknown stat/op or non-finite value.");
-        if(m.stat==="ATKSPD"&&(m.op!=="MultiplyFinal"||m.value<=0))
-          errs.push("Runtime modifier #"+(i+1)+" ATKSPD must be a positive MultiplyFinal interval factor.");
-      });
-      v.runtime.conditionalModifiers.forEach(function(c,i){
-        if(RUNTIME_MODES.indexOf(c.mode)<0||STAT_KEYS.indexOf(c.stat)<0||RUNTIME_OPS.indexOf(c.op)<0)
-          errs.push("Runtime conditional #"+(i+1)+" has an unknown mode/stat/op.");
-        if(c.stat==="ATKSPD"&&c.mode==="counterScaled")
-          errs.push("Runtime conditional #"+(i+1)+" cannot counter-scale ATKSPD linearly.");
-        if(c.mode==="counterScaled"){
-          if(RUNTIME_COUNTERS.indexOf(c.counter)<0||!Number.isFinite(c.perCounter)||c.perCounter===0)
-            errs.push("Runtime conditional #"+(i+1)+" needs a known counter and non-zero finite perCounter.");
-        } else if(RUNTIME_CONDITIONS.indexOf(c.condition)<0||!Number.isFinite(c.value)||!Number.isFinite(c.intParam)){
-          errs.push("Runtime conditional #"+(i+1)+" has an invalid condition/value/parameter.");
-        }
-        if(c.stat==="ATKSPD"&&c.mode==="condition"&&(c.op!=="MultiplyFinal"||c.value<=0))
-          errs.push("Runtime conditional #"+(i+1)+" ATKSPD must be a positive MultiplyFinal interval factor.");
-      });
-      v.runtime.keywords.forEach(function(k,i){
-        if(RUNTIME_ACTIONS.indexOf(k.action)<0||RUNTIME_HOOKS.indexOf(k.hook)<0||
-           !Number.isFinite(k.intParam)||!Number.isFinite(k.floatParam))
-          errs.push("Runtime keyword #"+(i+1)+" has an unknown action/hook or non-finite parameter.");
-      });
-    }
+    errs=errs.concat(validateRuntime(v.runtime));
     return {errs:errs, warns:warns};
   }
   function showMsg(el, r){
@@ -1149,7 +1263,10 @@
     return r.errs.length===0;
   }
   function saveVerse(){
-    var v=collectVerse(), r=validateVerse(v);
+    if(NAS_BUSY){alert("Wait for NAS sync to finish, then save your edit."); return;}
+    var v, r;
+    try { v=collectVerse(); r=validateVerse(v); }
+    catch(error){ showMsg(qs("mMsg"),{errs:["Runtime JSON or a numeric field is invalid. Check your runtime edits before saving."],warns:[]}); return; }
     if(!showMsg(qs("mMsg"), r)) return;
     if(editingId && editingId!==v.id){
       if(DISK_HAS(editingId)){ if(OV.deletes.indexOf(editingId)<0) OV.deletes.push(editingId); }
@@ -1164,6 +1281,7 @@
     closeModal("modal");
   }
   function deleteVerse(){
+    if(NAS_BUSY){alert("Wait for NAS sync to finish before deleting."); return;}
     if(!editingId){ closeModal("modal"); return; }
     if(!confirm("Delete Verse "+editingId+"?")) return;
     if(DISK_HAS(editingId)){ if(OV.deletes.indexOf(editingId)<0) OV.deletes.push(editingId); }
@@ -1212,7 +1330,8 @@
     openModal("gmodal");
   }
   function collectGod(){
-    return {
+    var original=GODS[editingGod]||{};
+    return Object.assign({},original,{
       name:qs("gName").value.trim(),
       faction:qs("gFaction").value,
       accent:qs("gAccent").value.trim()||"#c9a227",
@@ -1220,8 +1339,8 @@
       traits:gTraitsSel.slice(),
       anchorTrait:qs("gAnchor").value||"",
       tagline:qs("gTagline").value.trim(),
-      rule:{name:qs("gRuleName").value.trim(), text:qs("gRuleText").value.trim()}
-    };
+      rule:Object.assign({},original.rule||{},{name:qs("gRuleName").value.trim(), text:qs("gRuleText").value.trim()})
+    });
   }
   function validateGod(g){
     var errs=[], warns=[];
@@ -1238,6 +1357,7 @@
     return {errs:errs, warns:warns};
   }
   function saveGod(){
+    if(NAS_BUSY){alert("Wait for NAS sync to finish, then save your edit."); return;}
     var g=collectGod(), r=validateGod(g);
     if(!showMsg(qs("gMsg"), r)) return;
     var name=g.name; delete g.name;
@@ -1252,6 +1372,7 @@
     closeModal("gmodal");
   }
   function deleteGod(){
+    if(NAS_BUSY){alert("Wait for NAS sync to finish before deleting."); return;}
     if(!editingGod){ closeModal("gmodal"); return; }
     var sigs=godCount(editingGod);
     var msg = sigs>0 ? editingGod+" has "+sigs+" signature Verse(s). Delete the God anyway? (Verses keep their tag.)" : "Delete God "+editingGod+"?";
@@ -1275,28 +1396,39 @@
     m.gods=GODS; m.runtimeSchemaVersion=RUNTIME_SCHEMA_VERSION; return m;
   }
   function exportVersesJs(){ download("verses.js", "window.DR_VERSES = "+JSON.stringify({_meta:syncedMeta(), verses:VERSES})+";\n"); }
-  function exportVersesJson(){ download("verses.json", JSON.stringify({_meta:syncedMeta(), verses:VERSES}, null, 2)); }
+  function exportVersesJson(){ download("verses.json", JSON.stringify(nasCatalog(), null, 2)); }
   function exportGodsJson(){ download("gods.json", JSON.stringify({gods:GODS}, null, 2)); }
 
   // ===== GitHub sync: one private repo is the source of truth for verses.json =====
-  // Token is kept only in this browser's localStorage. Reads/writes go straight to the
-  // GitHub REST API, so the same data appears on PC and phone with no third copy.
+  // Keep tokens out of persistent browser storage. Migrate previous settings once.
+  var syncTokens={};
+  function syncCfg(key){
+    var c={}; try{c=JSON.parse(localStorage.getItem(key))||{};}catch(e){}
+    if(c.token){ syncTokens[key]=c.token; delete c.token; localStorage.setItem(key,JSON.stringify(c)); }
+    c.token=syncTokens[key]||""; return c;
+  }
+  function syncStore(key,c){
+    syncTokens[key]=c.token||""; var safe=Object.assign({},c); delete safe.token;
+    localStorage.setItem(key,JSON.stringify(safe));
+  }
   var GH_KEY="dr_gh_cfg_v1", GH_SHA=null;
-  function ghCfg(){ try{ return JSON.parse(localStorage.getItem(GH_KEY))||{}; }catch(e){ return {}; } }
-  function ghStore(c){ try{ localStorage.setItem(GH_KEY, JSON.stringify(c)); }catch(e){} }
+  function ghCfg(){ return syncCfg(GH_KEY); }
+  function ghStore(c){ syncStore(GH_KEY,c); }
   function ghHeaders(c){ return {"Authorization":"token "+c.token,"Accept":"application/vnd.github+json","X-GitHub-Api-Version":"2022-11-28"}; }
   function ghUrl(c){ return "https://api.github.com/repos/"+encodeURIComponent(c.owner)+"/"+encodeURIComponent(c.repo)+"/contents/"+c.path.split("/").map(encodeURIComponent).join("/"); }
   function b64enc(s){ return btoa(unescape(encodeURIComponent(s))); }
   function b64dec(s){ return decodeURIComponent(escape(atob(s.replace(/\n/g,"")))); }
   function ghMsg(kind,html){ var el=qs("ghMsg"); if(!el) return; el.className="vmsg"+(kind?(" "+kind):""); el.style.display=html?"block":"none"; el.innerHTML=html||""; }
   function ghReady(c){ return c && c.token && c.owner && c.repo; }
-  function ghApplyData(data){
+  function ghApplyData(data, fromNas){
+    if(!fromNas) NAS_BASELINE=null;
     DATA=data; META=data._meta||{stats:{}}; STAT=META.stats||STAT;
     DISK_GODS={}; var gg=META.gods||{}; Object.keys(gg).forEach(function(k){ DISK_GODS[k]=gg[k]; });
     applyOverrides(); applyGodOverrides();
     refreshEnums(); renderGods(); render(); updateOvNote();
   }
   function ghLoad(silent){
+    if(NAS_BUSY) return Promise.resolve(false);
     var c=ghCfg();
     if(!ghReady(c)){ if(!silent) ghMsg("bad","Enter a token, owner and repo first."); return Promise.resolve(false); }
     if(!silent) ghMsg("","Loading from GitHub&hellip;");
@@ -1312,6 +1444,7 @@
     }).catch(function(e){ if(!silent) ghMsg("bad","Load failed: "+e.message); else console.warn("GitHub auto-load:",e.message); return false; });
   }
   function ghPublish(){
+    if(NAS_BUSY) return;
     var c=ghCfg();
     if(!ghReady(c)){ ghMsg("bad","Open \u2601 Sync and set a token, owner and repo first."); openModal("smodal"); return; }
     ghMsg("","Publishing&hellip;");
@@ -1350,55 +1483,127 @@
                                         :"Not configured. Fill these in, Save, then Load.");
     var nb=nasCfg().base||""; if(qs("nasBase")) qs("nasBase").value=nb;
     if(qs("nasToken")) qs("nasToken").value=nasCfg().token||"";
-    nasMsg(nasBase()?"":"", nasBase()?("NAS: <b>"+(nb||"this server")+"</b>. Load pulls the shared copy; Save pushes your edits."):"");
+    nasMsg("",nasBase()?("NAS: "+(nb||"this server")+". Load the shared copy before editing; Save publishes your edits."):"");
     openModal("smodal");
   }
-  // ===== NAS backend: one shared copy of verses.json on the always-on NAS =====
+  // ===== NAS backend: revision-bound saves and recoverable local edits =====
   var NAS_KEY="dr_nas_cfg_v1";
-  function nasCfg(){ try{ return JSON.parse(localStorage.getItem(NAS_KEY))||{}; }catch(e){ return {}; } }
-  function nasStore(c){ try{ localStorage.setItem(NAS_KEY, JSON.stringify(c)); }catch(e){} }
+  function nasCfg(){ return syncCfg(NAS_KEY); }
+  function nasStore(c){ syncStore(NAS_KEY,c); }
   function nasServed(){ return location.protocol==="http:"||location.protocol==="https:"; }
   function nasBase(){
     var b=(nasCfg().base||"").trim();
-    if(b) return b.replace(/\/+$/,"");
-    return nasServed() ? location.origin : "";
+    return b?b.replace(/\/+$/,""):(nasServed()?location.origin:"");
   }
-  function nasMsg(kind,html){ var el=qs("nasMsg"); if(!el) return; el.className="vmsg"+(kind?(" "+kind):""); el.style.display=html?"block":"none"; el.innerHTML=html||""; }
-  function nasSaveCfg(){ nasStore({base:((qs("nasBase")&&qs("nasBase").value)||"").trim(), token:((qs("nasToken")&&qs("nasToken").value)||"").trim()}); }
-  function nasHeaders(extra){ var h=extra||{}; var t=(nasCfg().token||"").trim(); if(t) h["X-Auth-Token"]=t; return h; }
+  function nasMsg(kind,message){
+    ["nasMsg","nasStatus"].forEach(function(id){
+      var el=qs(id); if(!el) return;
+      el.className="vmsg"+(kind?(" "+kind):""); el.style.display=message?"block":"none"; el.textContent=message||"";
+    });
+  }
+  function nasSaveCfg(){
+    nasStore({base:qs("nasBase").value.trim(), token:qs("nasToken").value.trim()});
+  }
+  function nasHeaders(extra){
+    var h=extra||{}, t=(nasCfg().token||"").trim(); if(t) h["X-Auth-Token"]=t; return h;
+  }
+  function nasCatalog(){
+    // Preserve unknown catalog-root fields as well as metadata and runtime records.
+    return JSON.parse(JSON.stringify(Object.assign({},DATA,{_meta:syncedMeta(),verses:VERSES})));
+  }
+  function nasSetBusy(busy){
+    NAS_BUSY=busy;
+    ["nasSaveBtn","nasLoadBtn"].forEach(function(id){if(qs(id)) qs(id).disabled=busy;});
+  }
+  function nasRead(base){
+    return fetch(base+"/api/verses",{cache:"no-store",headers:nasHeaders()}).then(function(r){
+      if(r.status===401) throw new Error("Access token required. Open Sync and enter your NAS token.");
+      if(r.status===404) return {data:null,etag:null};
+      if(!r.ok) throw new Error("NAS returned HTTP "+r.status+".");
+      var etag=r.headers.get("ETag");
+      if(!etag) throw new Error("The NAS needs the save-protection update before this page can sync.");
+      return r.json().then(function(data){
+        if(!data || !Array.isArray(data.verses) || !data._meta) throw new Error("The NAS returned an invalid catalog.");
+        return {data:data,etag:etag};
+      });
+    });
+  }
   function nasLoad(silent){
     var base=nasBase();
-    if(!base){ if(!silent) nasMsg("bad","Enter your NAS address first (e.g. http://192.168.68.58:8088)."); return Promise.resolve(false); }
-    if(!silent) nasMsg("","Loading from NAS&hellip;");
-    return fetch(base+"/api/verses",{cache:"no-store",headers:nasHeaders()}).then(function(r){
-      if(r.status===401) throw new Error("access token required \u2014 open \u2601 Sync and enter your NAS token");
-      if(r.status===404) throw new Error("no data on the NAS yet \u2014 open the page where your verses already are and click Save to NAS once");
-      if(!r.ok) throw new Error("HTTP "+r.status);
-      return r.json();
-    }).then(function(data){
-      ghApplyData(data);
-      if(!silent) nasMsg("ok","Loaded <b>"+VERSES.length+"</b> verses from the NAS.");
+    if(!base || NAS_BUSY) return Promise.resolve(false);
+    nasSetBusy(true);
+    if(!silent) nasMsg("","Loading from NAS…");
+    return nasRead(base).then(function(remote){
+      if(!remote.data){
+        if(!hasOverrides()) NAS_BASELINE={base:base,etag:null,data:null};
+        throw new Error("The NAS has no catalog yet. Save from a device holding your complete catalog.");
+      }
+      if(hasOverrides()){
+        var same=NAS_BASELINE && NAS_BASELINE.base===base && NAS_BASELINE.etag===remote.etag;
+        if(!same){
+          if(silent){
+            nasMsg("bad","The NAS changed or these local edits have no saved revision. Your local edits are retained. Open Sync to download a backup and review the latest NAS copy.");
+            return false;
+          }
+          if(!confirm("Download a backup of your local catalog, then replace local edits with the latest NAS copy? Cancel to keep editing locally.")) return false;
+          download("verses-local-backup.json",JSON.stringify(nasCatalog(),null,2));
+          OV={upserts:{},deletes:[],godUpserts:{},godDeletes:[]};
+        }
+      }
+      NAS_BASELINE={base:base,etag:remote.etag,data:remote.data};
+      ghApplyData(remote.data,true); saveOverrides(OV);
+      nasMsg("ok","Loaded "+VERSES.length+" Verses from the NAS. "+(hasOverrides()?"Local edits remain pending.":""));
       return true;
-    }).catch(function(e){ if(!silent) nasMsg("bad","Load failed: "+e.message); else console.warn("NAS auto-load:",e.message); return false; });
+    }).catch(function(e){nasMsg("bad","Load failed: "+e.message); return false;})
+      .finally(function(){nasSetBusy(false);});
+  }
+  function nasAcknowledge(sentOverrides){
+    // An edit made while the request is in flight must remain pending.
+    ["upserts","godUpserts"].forEach(function(kind){
+      Object.keys(sentOverrides[kind]).forEach(function(id){
+        if(JSON.stringify(OV[kind][id])===JSON.stringify(sentOverrides[kind][id])) delete OV[kind][id];
+      });
+    });
+    ["deletes","godDeletes"].forEach(function(kind){
+      OV[kind]=OV[kind].filter(function(id){return sentOverrides[kind].indexOf(id)<0;});
+    });
   }
   function nasSave(){
+    if(NAS_BUSY) return Promise.resolve(false);
     var base=nasBase();
-    if(!base){ nasMsg("bad","Enter your NAS address first, or open this page from the NAS."); openModal("smodal"); return; }
-    nasMsg("","Saving to NAS&hellip;");
-    var body=JSON.stringify({_meta:syncedMeta(), verses:VERSES});
-    fetch(base+"/api/verses",{method:"PUT",headers:nasHeaders({"Content-Type":"application/json"}),body:body}).then(function(r){
-      if(r.status===401) throw new Error("access token required \u2014 open \u2601 Sync and enter your NAS token");
-      if(!r.ok) return r.text().then(function(t){ throw new Error("HTTP "+r.status+" "+t); });
-      return r.json();
-    }).then(function(j){
-      DATA={_meta:syncedMeta(), verses:VERSES.slice()};
-      OV={upserts:{},deletes:[],godUpserts:{},godDeletes:[]}; saveOverrides(OV);
-      DISK_GODS={}; Object.keys(GODS).forEach(function(k){ DISK_GODS[k]=GODS[k]; });
-      updateOvNote();
-      nasMsg("ok","Saved <b>"+(j.verses||VERSES.length)+"</b> verses to the NAS. Open this NAS address on your phone to see them.");
-    }).catch(function(e){ nasMsg("bad","Save failed: "+e.message); });
+    openModal("smodal");
+    if(!base){nasMsg("bad","Enter your NAS address first."); return Promise.resolve(false);}
+    nasSetBusy(true); nasMsg("","Saving to NAS…");
+    var sent, sentOverrides;
+    // An existing catalog must never acquire a fresh revision immediately before
+    // sending stale local data. Only bootstrap an actually absent remote catalog.
+    var ready=NAS_BASELINE && NAS_BASELINE.base===base?Promise.resolve():nasRead(base).then(function(remote){
+      if(remote.data) throw new Error("Load from NAS before saving. Your local edits are retained.");
+      NAS_BASELINE={base:base,etag:null,data:null};
+    });
+    return ready.then(function(){
+      sent=nasCatalog(); sentOverrides=JSON.parse(JSON.stringify(OV));
+      var headers=nasHeaders({"Content-Type":"application/json"});
+      if(NAS_BASELINE.etag) headers["If-Match"]=NAS_BASELINE.etag;
+      else headers["If-None-Match"]="*";
+      return fetch(base+"/api/verses",{method:"PUT",headers:headers,body:JSON.stringify(sent)});
+    }).then(function(r){
+      if(r.status===412) throw new Error("Another device saved first. Your edits are retained. Download a local backup, then Load from NAS to review its changes.");
+      if(r.status===428) throw new Error("Reload the current app and Load from NAS before saving. Your edits are retained.");
+      if(r.status===401) throw new Error("Access token required. Enter your NAS token.");
+      if(!r.ok) throw new Error("NAS returned HTTP "+r.status+". Your edits are retained.");
+      var etag=r.headers.get("ETag");
+      if(!etag) throw new Error("The save response has no revision. Reload from NAS to verify the save; your edits are retained.");
+      NAS_BASELINE={base:base,etag:etag,data:sent};
+      nasAcknowledge(sentOverrides); ghApplyData(sent,true); saveOverrides(OV);
+      nasMsg("ok","Saved "+sent.verses.length+" Verses to the NAS. "+(hasOverrides()?"Newer local edits are still pending.":"PC and phone can load this copy."));
+      return true;
+    }).catch(function(e){nasMsg("bad","Save failed: "+e.message); return false;})
+      .finally(function(){nasSetBusy(false);});
   }
+
   function resetOverrides(){
+    if(NAS_BUSY){alert("Wait for NAS sync to finish before resetting local edits."); return;}
     if(!confirm("Discard all local edits and reload from disk?")) return;
     try{ localStorage.removeItem(LS_KEY); }catch(e){}
     location.reload();
@@ -1406,7 +1611,7 @@
   function updateOvNote(){
     var el=qs("ovNote"); if(!el) return;
     var n=Object.keys(OV.upserts).length+OV.deletes.length+Object.keys(OV.godUpserts).length+OV.godDeletes.length;
-    el.innerHTML = n ? "<b>"+n+"</b> local edit(s) pending \u2014 Export to write to disk." : "No local edits.";
+    el.textContent = n ? n+" local edit(s) pending — Save to NAS to share them." : "No local edits.";
   }
 
   // ---- events ----
@@ -1549,6 +1754,7 @@
   qs("nasSaveTop").addEventListener("click", nasSave);
   qs("nasSaveBtn").addEventListener("click", function(){ nasSaveCfg(); nasSave(); });
   qs("nasLoadBtn").addEventListener("click", function(){ nasSaveCfg(); nasLoad(false); });
+  qs("nasBackupBtn").addEventListener("click", function(){download("verses-local-backup.json",JSON.stringify(nasCatalog(),null,2));});
   qs("nasClose").addEventListener("click", function(){ closeModal("smodal"); });
   qs("ghSaveBtn").addEventListener("click", ghSaveCfg);
   qs("ghLoadBtn").addEventListener("click", function(){ ghLoad(false); });
