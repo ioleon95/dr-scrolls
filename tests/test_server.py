@@ -13,7 +13,7 @@ import server
 
 
 def catalog(name="Sample"):
-    return {"_meta": {"gods": {}}, "verses": [{"id": "TEST-01", "name": name,
+    return {"_meta": {"gods": {}}, "verses": [{"id": "TEST-01", "name": name, "text": "+1 ATK.", "catch": "-1 DEF.",
             "runtime": {key: [] for key in server.RUNTIME_ARRAYS}}]}
 
 
@@ -53,6 +53,14 @@ class CatalogServerTests(unittest.TestCase):
         status, headers, _ = self.request("PUT", data=catalog(), headers={"If-None-Match": "*"})
         self.assertEqual(status, 200)
         return headers["ETag"]
+
+    def test_benefit_and_catch_are_required(self):
+        for field in ("text", "catch"):
+            for value in (None, "", "   "):
+                data = catalog()
+                data["verses"][0][field] = value
+                self.assertEqual(self.request("PUT", data=data, headers={"If-None-Match": "*"})[0], 400)
+        self.assertFalse(server.os.path.exists(server.DATA_FILE))
 
     def test_create_read_head_and_exact_revision(self):
         self.assertEqual(self.request()[0], 404)

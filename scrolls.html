@@ -477,8 +477,11 @@
         <label for="mEnginePolicies">Engine policies (JSON array)</label><textarea id="mEnginePolicies" rows="6"></textarea>
       </details>
 
-      <div class="fld"><label>Rules Text (keyword rules; carries the scaling cost for Sacred/Divine)</label>
-        <textarea id="mText" placeholder='e.g. Devour "3". Gain +1 ATK per Devour Counter; each Counter also lowers your DEF by 1.'></textarea>
+      <div class="fld"><label for="mText">Benefit</label>
+        <textarea id="mText" required placeholder="Gain +1 ATK per Devour Counter."></textarea>
+      </div>
+      <div class="fld"><label for="mCatch">Catch</label>
+        <textarea id="mCatch" required placeholder="Lose 1 DEF per Devour Counter."></textarea>
       </div>
       <div class="fld"><label>Flavor</label><textarea id="mFlavor" placeholder="One evocative line."></textarea></div>
 
@@ -719,7 +722,14 @@
     var cls = "scroll "+String(v.tier).toLowerCase()+(inScripture[v.id]?" in":"");
     var glyph = GLYPHS[idx % GLYPHS.length];
     var effs = v.effects.slice().sort(function(a,b){return b.value-a.value;}).map(effHTML).join("");
-    var rt  = v.text ? '<p class="rtext">'+v.text+'</p>' : "";
+    function ruleLine(label, value){
+      if(!value) return "";
+      var line=document.createElement("p");
+      line.className="rtext";
+      line.textContent=label+": "+value;
+      return line.outerHTML;
+    }
+    var rt=ruleLine("Benefit",v.text)+ruleLine("Catch",v.catch);
     var kws = (v.keywords&&v.keywords.length)
       ? '<div class="kws">'+v.keywords.map(function(k){return '<span class="kw">'+k+'</span>';}).join("")+'</div>' : "";
     var godTag = v.god
@@ -764,7 +774,7 @@
       if(fTrait!=="all" && traitOf(v).indexOf(fTrait)<0) return false;
       if(fQuery){
         var q=fQuery.toLowerCase();
-        if(v.name.toLowerCase().indexOf(q)<0 && (v.flavor||"").toLowerCase().indexOf(q)<0 && (v.text||"").toLowerCase().indexOf(q)<0) return false;
+        if(v.name.toLowerCase().indexOf(q)<0 && (v.flavor||"").toLowerCase().indexOf(q)<0 && (v.text||"").toLowerCase().indexOf(q)<0 && (v.catch||"").toLowerCase().indexOf(q)<0) return false;
       }
       return true;
     });
@@ -1181,6 +1191,7 @@
     if(v){ (v.effects||[]).forEach(function(e){ addEffRow(e.stat, e.value); }); }
     setRuntimeEditor(v ? v.runtime : null);
     qs("mText").value = v ? (v.text||"") : "";
+    qs("mCatch").value = v ? (v.catch||"") : "";
     qs("mFlavor").value = v ? (v.flavor||"") : "";
     qs("mDelete").style.display = v ? "inline-block":"none";
     qs("mMsg").className="vmsg"; qs("mMsg").innerHTML="";
@@ -1209,16 +1220,15 @@
     out.effects=readEffs();
     out.runtime=readRuntime();
     out.text=qs("mText").value.trim();
+    out.catch=qs("mCatch").value.trim();
     out.flavor=qs("mFlavor").value.trim();
     delete out.godLocked; // retired flag; never reintroduce it from older records
     return out;
   }
-  function isSelfBalancing(v){
-    if(v.effects.some(function(e){return e.value<0;})) return true;
-    return /\b(cost|costs|lose|loses|lower|lowers|reduce|reduces|sacrifice|pay|pays|drain|drains|weaken|weakens|discard|forfeit)\b/i.test(v.text||"");
-  }
   function validateVerse(v){
     var errs=[], warns=[];
+    if(!v.text || !v.text.trim()) errs.push("Benefit is required.");
+    if(!v.catch || !v.catch.trim()) errs.push("Catch is required.");
     if(!v.name) errs.push("Name is required.");
     if(!v.id) errs.push("ID is required.");
     if(v.id!==editingId && VERSES.some(function(x){return x.id===v.id;})) errs.push("ID \""+v.id+"\" already exists.");
@@ -1243,8 +1253,6 @@
     }
     if(!statsAllowed(v.tier)){
       if(v.effects.length) warns.push(v.tier+" Verses are text-first \u2014 prefer rules text over +/- stats.");
-      if(!v.text) errs.push(v.tier+" Verses need rules text (their power lives in the text).");
-      if(!isSelfBalancing(v)) errs.push(v.tier+" Verses must be self-balancing: carry a scaling downside (a negative effect, or 'cost'/'lose'/'sacrifice' in the text).");
     } else if(!v.effects.length && !v.text){
       warns.push("Standard/Doctrine Verse has no stat effects and no text.");
     }
