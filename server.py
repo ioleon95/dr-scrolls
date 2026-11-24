@@ -66,6 +66,9 @@ def validate_catalog(data):
         if verse["id"] in seen:
             raise ValueError("Duplicate Verse id.")
         seen.add(verse["id"])
+        for field in ("text", "catch"):
+            if not isinstance(verse.get(field), str) or not verse[field].strip():
+                raise ValueError("Each Verse needs a Benefit and a Catch.")
         runtime = verse.get("runtime")
         if not isinstance(runtime, dict):
             raise ValueError("Each Verse needs a runtime object.")
